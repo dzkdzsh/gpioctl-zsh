@@ -34,6 +34,7 @@ struct gpioctl_line_state_zsh {
 	bool leased;
 	bool output;
 	bool active_low;
+	bool input_only;
 	int logical_value;
 };
 
@@ -42,9 +43,13 @@ struct gpioctl_controller_zsh {
 	dev_t devt;
 	struct device *device;
 	struct gpioctl_backend_desc_zsh backend;
+	struct gpioctl_line_policy_desc_zsh *policies;
 	struct mutex lock;
 	unsigned long *leased;
 	unsigned int id;
+	unsigned int allowlisted_lines;
+	unsigned int output_lines;
+	unsigned int reserved_lines;
 	atomic_t open_count;
 	atomic_t active_leases;
 	atomic64_t operations;
@@ -114,6 +119,29 @@ static int gpioctl_validate_header_zsh(u32 version, u32 size,
 	return 0;
 }
 
+static int gpioctl_validate_policy_zsh(
+	const struct gpioctl_line_policy_desc_zsh *policy)
+{
+	const u32 known_flags = GPIOCTL_ZSH_POLICY_ALLOW_UNPRIVILEGED |
+		GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED | GPIOCTL_ZSH_POLICY_RESERVED;
+
+	if (policy->flags & ~known_flags ||
+	    policy->safe_direction > GPIOCTL_ZSH_DIRECTION_OUTPUT ||
+	    policy->safe_value > 1 ||
+	    policy->safe_bias < GPIOCTL_ZSH_BIAS_DISABLE ||
+	    policy->safe_bias > GPIOCTL_ZSH_BIAS_PULL_DOWN)
+		return -EINVAL;
+	if ((policy->flags & GPIOCTL_ZSH_POLICY_RESERVED) &&
+	    (policy->flags != GPIOCTL_ZSH_POLICY_RESERVED ||
+	     policy->safe_direction != GPIOCTL_ZSH_DIRECTION_INPUT ||
+	     policy->safe_value))
+		return -EINVAL;
+	if (policy->safe_direction == GPIOCTL_ZSH_DIRECTION_OUTPUT &&
+	    !(policy->flags & GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED))
+		return -EINVAL;
+	return 0;
+}
+
 static struct gpioctl_iopad_provider_zsh *gpioctl_get_iopad_zsh(void)
 {
 	struct gpioctl_iopad_provider_zsh *provider;
@@ -138,6 +166,40 @@ static void gpioctl_put_iopad_zsh(struct gpioctl_iopad_provider_zsh *provider)
 			wake_up_all(&provider->wait);
 		module_put(provider->desc.owner);
 	}
+}
+
+static int gpioctl_set_bias_zsh(struct gpioctl_controller_zsh *controller,
+				struct gpioctl_line_state_zsh *line,
+				enum gpioctl_zsh_bias bias)
+{
+	struct gpioctl_zsh_iopad_config config = {
+		.abi_version = GPIOCTL_ZSH_ABI_VERSION,
+		.struct_size = sizeof(config),
+		.flags = GPIOCTL_ZSH_IOPAD_APPLY_BIAS,
+		.bias = bias,
+	};
+	struct gpioctl_iopad_provider_zsh *provider;
+	int ret = -EOPNOTSUPP;
+
+	if (controller->backend.ops->set_bias) {
+		ret = controller->backend.ops->set_bias(
+			controller->backend.priv, line->hal_line, bias);
+		if (ret != -ENOTSUPP && ret != -EOPNOTSUPP)
+			return ret;
+	}
+
+	provider = gpioctl_get_iopad_zsh();
+	if (!provider)
+		return ret;
+	if (!provider->desc.ops->supports(provider->desc.priv,
+			controller->backend.hardware_key, line->offset)) {
+		gpioctl_put_iopad_zsh(provider);
+		return ret;
+	}
+	ret = provider->desc.ops->configure(provider->desc.priv,
+		controller->backend.hardware_key, line->offset, &config);
+	gpioctl_put_iopad_zsh(provider);
+	return ret;
 }
 
 static int gpioctl_physical_value_zsh(const struct gpioctl_line_state_zsh *line,
@@ -260,25 +322,53 @@ static int gpioctl_apply_snapshot_zsh(struct gpioctl_controller_zsh *controller,
 	return ret;
 }
 
-static void gpioctl_release_line_zsh(struct gpioctl_session_zsh *session,
-				     struct gpioctl_line_state_zsh *line)
+static int gpioctl_apply_safe_state_zsh(
+	struct gpioctl_controller_zsh *controller,
+	struct gpioctl_line_state_zsh *line)
+{
+	const struct gpioctl_line_policy_desc_zsh *policy =
+		&controller->policies[line->offset];
+	int first_error = 0;
+	int ret;
+
+	if (policy->safe_direction == GPIOCTL_ZSH_DIRECTION_OUTPUT) {
+		ret = gpioctl_set_bias_zsh(controller, line, policy->safe_bias);
+		if (ret)
+			first_error = ret;
+		ret = controller->backend.ops->direction_output(
+			controller->backend.priv, line->hal_line,
+			policy->safe_value);
+	} else {
+		ret = controller->backend.ops->direction_input(
+			controller->backend.priv, line->hal_line);
+		if (!ret)
+			ret = gpioctl_set_bias_zsh(controller, line,
+					       policy->safe_bias);
+	}
+	if (!first_error)
+		first_error = ret;
+	return first_error;
+}
+
+/* Lock order: controller->lock, then session->lock, then event_lock. */
+static int gpioctl_release_line_locked_zsh(
+	struct gpioctl_session_zsh *session,
+	struct gpioctl_line_state_zsh *line)
 {
 	struct gpioctl_controller_zsh *controller = session->controller;
+	int ret;
 
 	gpioctl_disable_event_zsh(line);
-	/* Unknown lines always return to the conservative input/high-Z state. */
-	controller->backend.ops->direction_input(controller->backend.priv,
-						 line->hal_line);
+	ret = gpioctl_apply_safe_state_zsh(controller, line);
 	controller->backend.ops->release(controller->backend.priv, line->hal_line);
-
-	mutex_lock(&controller->lock);
 	clear_bit(line->offset, controller->leased);
 	atomic_dec(&controller->active_leases);
-	mutex_unlock(&controller->lock);
 
 	memset(line, 0, sizeof(*line));
 	line->offset = line - session->lines;
 	line->irq = -1;
+	line->session = session;
+	return ret;
 }
 
 static int gpioctl_open_zsh(struct inode *inode, struct file *file)
@@ -350,11 +440,21 @@ static int gpioctl_release_zsh(struct inode *inode, struct file *file)
 	spin_unlock_irqrestore(&session->event_lock, irq_flags);
 	wake_up_interruptible(&session->event_wait);
 
+	mutex_lock(&controller->lock);
 	mutex_lock(&session->lock);
-	for (i = 0; i < controller->backend.line_count; i++)
-		if (session->lines[i].leased)
-			gpioctl_release_line_zsh(session, &session->lines[i]);
+	for (i = 0; i < controller->backend.line_count; i++) {
+		int ret;
+
+		if (!session->lines[i].leased)
+			continue;
+		ret = gpioctl_release_line_locked_zsh(session, &session->lines[i]);
+		if (ret)
+			pr_err_ratelimited(GPIOCTL_ZSH_NAME
+				": safe release failed controller=%u line=%u err=%d\n",
+				controller->id, i, ret);
+	}
 	mutex_unlock(&session->lock);
+	mutex_unlock(&controller->lock);
 
 	kfree(session->events);
 	kfree(session->lines);
@@ -397,17 +497,28 @@ static int gpioctl_lease_request_zsh(struct gpioctl_session_zsh *session,
 	struct gpioctl_controller_zsh *controller = session->controller;
 	struct gpioctl_zsh_lease request;
 	unsigned int i, acquired = 0;
+	bool privileged;
 	int ret;
 
 	ret = gpioctl_copy_lease_zsh(arg, &request);
 	if (ret)
 		return ret;
-	for (i = 0; i < request.count; i++)
+	privileged = capable(CAP_SYS_RAWIO);
+	for (i = 0; i < request.count; i++) {
+		const struct gpioctl_line_policy_desc_zsh *policy;
+
 		if (request.offsets[i] >= controller->backend.line_count)
 			return -EINVAL;
+		policy = &controller->policies[request.offsets[i]];
+		if (policy->flags & GPIOCTL_ZSH_POLICY_RESERVED)
+			return -EPERM;
+		if (!privileged &&
+		    !(policy->flags & GPIOCTL_ZSH_POLICY_ALLOW_UNPRIVILEGED))
+			return -EACCES;
+	}
 
-	mutex_lock(&session->lock);
 	mutex_lock(&controller->lock);
+	mutex_lock(&session->lock);
 	if (controller->unregistering) {
 		ret = -ENODEV;
 		goto out_unlock;
@@ -431,6 +542,8 @@ static int gpioctl_lease_request_zsh(struct gpioctl_session_zsh *session,
 		line->leased = true;
 		line->output = false;
 		line->active_low = false;
+		line->input_only = !!(request.flags &
+					  GPIOCTL_ZSH_LEASE_INPUT_ONLY);
 		set_bit(line->offset, controller->leased);
 		atomic_inc(&controller->active_leases);
 		acquired++;
@@ -444,6 +557,10 @@ rollback:
 
 		acquired--;
 		line = &session->lines[request.offsets[acquired]];
+		if (gpioctl_apply_safe_state_zsh(controller, line))
+			pr_err_ratelimited(GPIOCTL_ZSH_NAME
+				": lease rollback safe-state failed controller=%u line=%u\n",
+				controller->id, line->offset);
 		controller->backend.ops->release(controller->backend.priv,
 						 line->hal_line);
 		clear_bit(line->offset, controller->leased);
@@ -452,8 +569,8 @@ rollback:
 		line->leased = false;
 	}
 out_unlock:
-	mutex_unlock(&controller->lock);
 	mutex_unlock(&session->lock);
+	mutex_unlock(&controller->lock);
 	return ret;
 }
 
@@ -468,18 +585,24 @@ static int gpioctl_lease_release_zsh(struct gpioctl_session_zsh *session,
 	if (ret)
 		return ret;
 
+	mutex_lock(&session->controller->lock);
 	mutex_lock(&session->lock);
 	for (i = 0; i < request.count; i++)
 		if (!gpioctl_owned_line_zsh(session, request.offsets[i])) {
 			ret = -EPERM;
 			goto out;
 		}
-	for (i = 0; i < request.count; i++)
-		gpioctl_release_line_zsh(session,
-			&session->lines[request.offsets[i]]);
 	ret = 0;
+	for (i = 0; i < request.count; i++) {
+		int release_ret = gpioctl_release_line_locked_zsh(
+			session, &session->lines[request.offsets[i]]);
+
+		if (!ret && release_ret)
+			ret = release_ret;
+	}
 out:
 	mutex_unlock(&session->lock);
+	mutex_unlock(&session->controller->lock);
 	return ret;
 }
 
@@ -495,17 +618,18 @@ static int gpioctl_config_line_locked_zsh(
 	line = gpioctl_owned_line_zsh(session, config->offset);
 	if (!line)
 		return -EPERM;
+	if (config->direction == GPIOCTL_ZSH_DIRECTION_OUTPUT &&
+	    (line->input_only ||
+	     !(controller->policies[line->offset].flags &
+	       GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED)))
+		return -EPERM;
 	old.offset = line->offset;
 	old.output = line->output;
 	old.active_low = line->active_low;
 	old.logical_value = line->logical_value;
 
 	if (config->bias != GPIOCTL_ZSH_BIAS_AS_IS) {
-		if (!controller->backend.ops->set_bias)
-			return -EOPNOTSUPP;
-		ret = controller->backend.ops->set_bias(controller->backend.priv,
-						       line->hal_line,
-						       config->bias);
+		ret = gpioctl_set_bias_zsh(controller, line, config->bias);
 		if (ret)
 			return ret;
 	}
@@ -732,7 +856,8 @@ static int gpioctl_batch_exec_zsh(struct gpioctl_session_zsh *session,
 			goto out;
 		}
 		if (batch.ops[i].opcode == GPIOCTL_ZSH_BATCH_SET &&
-		    (!line->output || batch.ops[i].arg0 > 1)) {
+		    (!line->output || batch.ops[i].arg0 > 1 ||
+		     batch.ops[i].arg1 || batch.ops[i].flags)) {
 			ret = -EINVAL;
 			batch.failed_index = i;
 			goto out;
@@ -742,6 +867,15 @@ static int gpioctl_batch_exec_zsh(struct gpioctl_session_zsh *session,
 		     batch.ops[i].arg1 > 1 ||
 		     batch.ops[i].flags & ~GPIOCTL_ZSH_LINE_ACTIVE_LOW)) {
 			ret = -EINVAL;
+			batch.failed_index = i;
+			goto out;
+		}
+		if (batch.ops[i].opcode == GPIOCTL_ZSH_BATCH_CONFIG &&
+		    batch.ops[i].arg0 == GPIOCTL_ZSH_DIRECTION_OUTPUT &&
+		    (line->input_only ||
+		     !(controller->policies[line->offset].flags &
+		       GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED))) {
+			ret = -EPERM;
 			batch.failed_index = i;
 			goto out;
 		}
@@ -874,10 +1008,8 @@ static int gpioctl_iopad_config_zsh(struct gpioctl_session_zsh *session,
 	struct gpioctl_line_state_zsh *line;
 	int ret;
 
-	if (!capable(CAP_SYS_RAWIO)) {
-		atomic64_inc(&controller->denials);
+	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	}
 	if (copy_from_user(&config, arg, sizeof(config)))
 		return -EFAULT;
 	ret = gpioctl_validate_header_zsh(config.abi_version,
@@ -991,6 +1123,33 @@ static long gpioctl_ioctl_zsh(struct file *file, unsigned int command,
 				caps.offset, &caps);
 		gpioctl_put_iopad_zsh(provider);
 		if (!ret && copy_to_user(arg, &caps, sizeof(caps)))
+			ret = -EFAULT;
+		break;
+	}
+	case GPIOCTL_ZSH_IOC_GET_LINE_POLICY: {
+		struct gpioctl_zsh_line_policy policy;
+		const struct gpioctl_line_policy_desc_zsh *source;
+
+		if (copy_from_user(&policy, arg, sizeof(policy))) {
+			ret = -EFAULT;
+			break;
+		}
+		ret = gpioctl_validate_header_zsh(policy.abi_version,
+						  policy.struct_size,
+						  sizeof(policy));
+		if (ret || policy.offset >= controller->backend.line_count ||
+		    !gpioctl_reserved_zero_zsh(policy.reserved,
+						ARRAY_SIZE(policy.reserved))) {
+			if (!ret)
+				ret = -EINVAL;
+			break;
+		}
+		source = &controller->policies[policy.offset];
+		policy.flags = source->flags;
+		policy.safe_direction = source->safe_direction;
+		policy.safe_value = source->safe_value;
+		policy.safe_bias = source->safe_bias;
+		if (copy_to_user(arg, &policy, sizeof(policy)))
 			ret = -EFAULT;
 		break;
 	}
@@ -1167,10 +1326,26 @@ static ssize_t active_leases_show(struct device *device,
 }
 static DEVICE_ATTR_RO(active_leases);
 
+#define GPIOCTL_ZSH_SYSFS_UINT(name, field) \
+static ssize_t name##_show(struct device *device, \
+			   struct device_attribute *attribute, char *buffer) \
+{ \
+	struct gpioctl_controller_zsh *controller = dev_get_drvdata(device); \
+	return sysfs_emit(buffer, "%u\n", controller->field); \
+} \
+static DEVICE_ATTR_RO(name)
+
+GPIOCTL_ZSH_SYSFS_UINT(allowlisted_lines, allowlisted_lines);
+GPIOCTL_ZSH_SYSFS_UINT(output_lines, output_lines);
+GPIOCTL_ZSH_SYSFS_UINT(reserved_lines, reserved_lines);
+
 static struct attribute *gpioctl_zsh_attrs[] = {
 	&dev_attr_backend.attr,
 	&dev_attr_line_count.attr,
 	&dev_attr_active_leases.attr,
+	&dev_attr_allowlisted_lines.attr,
+	&dev_attr_output_lines.attr,
+	&dev_attr_reserved_lines.attr,
 	&dev_attr_operations.attr,
 	&dev_attr_errors.attr,
 	&dev_attr_denials.attr,
@@ -1192,6 +1367,7 @@ int gpioctl_register_backend_zsh(const struct gpioctl_backend_desc_zsh *desc,
 				 struct gpioctl_controller_zsh **result)
 {
 	struct gpioctl_controller_zsh *controller;
+	unsigned int i;
 	int id, ret;
 
 	if (!desc || !result || !desc->name || !desc->hardware_key ||
@@ -1209,10 +1385,34 @@ int gpioctl_register_backend_zsh(const struct gpioctl_backend_desc_zsh *desc,
 	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
 	if (!controller)
 		return -ENOMEM;
+	controller->policies = kcalloc(desc->line_count,
+				       sizeof(*controller->policies), GFP_KERNEL);
+	if (!controller->policies) {
+		ret = -ENOMEM;
+		goto err_controller;
+	}
+	for (i = 0; i < desc->line_count; i++) {
+		struct gpioctl_line_policy_desc_zsh *policy =
+			&controller->policies[i];
+
+		policy->safe_direction = GPIOCTL_ZSH_DIRECTION_INPUT;
+		policy->safe_bias = GPIOCTL_ZSH_BIAS_DISABLE;
+		if (desc->line_policies)
+			*policy = desc->line_policies[i];
+		ret = gpioctl_validate_policy_zsh(policy);
+		if (ret)
+			goto err_policies;
+		if (policy->flags & GPIOCTL_ZSH_POLICY_ALLOW_UNPRIVILEGED)
+			controller->allowlisted_lines++;
+		if (policy->flags & GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED)
+			controller->output_lines++;
+		if (policy->flags & GPIOCTL_ZSH_POLICY_RESERVED)
+			controller->reserved_lines++;
+	}
 	controller->leased = bitmap_zalloc(desc->line_count, GFP_KERNEL);
 	if (!controller->leased) {
 		ret = -ENOMEM;
-		goto err_controller;
+		goto err_policies;
 	}
 	id = ida_alloc_max(&gpioctl_ida_zsh, GPIOCTL_ZSH_MAX_CONTROLLERS - 1,
 			   GFP_KERNEL);
@@ -1223,6 +1423,7 @@ int gpioctl_register_backend_zsh(const struct gpioctl_backend_desc_zsh *desc,
 	controller->id = id;
 	controller->devt = MKDEV(MAJOR(gpioctl_base_devt_zsh), id);
 	controller->backend = *desc;
+	controller->backend.line_policies = controller->policies;
 	mutex_init(&controller->lock);
 	cdev_init(&controller->cdev, &gpioctl_fops_zsh);
 	controller->cdev.owner = THIS_MODULE;
@@ -1248,6 +1449,8 @@ err_ida:
 	ida_free(&gpioctl_ida_zsh, id);
 err_bitmap:
 	bitmap_free(controller->leased);
+err_policies:
+	kfree(controller->policies);
 err_controller:
 	kfree(controller);
 	return ret;
@@ -1271,6 +1474,7 @@ int gpioctl_unregister_backend_zsh(struct gpioctl_controller_zsh *controller)
 	cdev_del(&controller->cdev);
 	ida_free(&gpioctl_ida_zsh, controller->id);
 	bitmap_free(controller->leased);
+	kfree(controller->policies);
 	pr_info(GPIOCTL_ZSH_NAME ": unregistered controller=%u backend=%s\n",
 		controller->id, controller->backend.name);
 	kfree(controller);

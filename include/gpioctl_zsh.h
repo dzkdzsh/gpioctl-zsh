@@ -25,6 +25,9 @@ int gpioctl_zsh_get_caps(struct gpioctl_zsh_handle *handle,
 int gpioctl_zsh_get_line_caps(struct gpioctl_zsh_handle *handle,
 			      uint32_t offset,
 			      struct gpioctl_zsh_line_caps *caps);
+int gpioctl_zsh_get_line_policy(struct gpioctl_zsh_handle *handle,
+				uint32_t offset,
+				struct gpioctl_zsh_line_policy *policy);
 int gpioctl_zsh_lease(struct gpioctl_zsh_handle *handle,
 		      const uint32_t *offsets, size_t count, uint32_t flags);
 int gpioctl_zsh_release(struct gpioctl_zsh_handle *handle,

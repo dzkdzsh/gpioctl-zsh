@@ -23,6 +23,7 @@ struct gpioctl_mock_line_zsh {
 struct gpioctl_mock_zsh {
 	struct mutex lock;
 	struct gpioctl_mock_line_zsh lines[GPIOCTL_MOCK_LINES_ZSH];
+	struct gpioctl_line_policy_desc_zsh policies[GPIOCTL_MOCK_LINES_ZSH];
 	struct irq_domain *irq_domain;
 	struct gpioctl_controller_zsh *controller;
 };
@@ -264,6 +265,7 @@ static int __init gpioctl_mock_init_zsh(void)
 			GPIOCTL_ZSH_CAP_DEBOUNCE |
 			GPIOCTL_ZSH_CAP_BATCH,
 		.ops = &gpioctl_mock_ops_zsh,
+		.line_policies = gpioctl_mock_zsh.policies,
 		.priv = &gpioctl_mock_zsh,
 		.owner = THIS_MODULE,
 	};
@@ -278,6 +280,13 @@ static int __init gpioctl_mock_init_zsh(void)
 		return -ENOMEM;
 	for (i = 0; i < GPIOCTL_MOCK_LINES_ZSH; i++) {
 		gpioctl_mock_zsh.lines[i].offset = i;
+		gpioctl_mock_zsh.policies[i].safe_direction =
+			GPIOCTL_ZSH_DIRECTION_INPUT;
+		gpioctl_mock_zsh.policies[i].safe_bias =
+			GPIOCTL_ZSH_BIAS_DISABLE;
+		gpioctl_mock_zsh.policies[i].flags =
+			GPIOCTL_ZSH_POLICY_ALLOW_UNPRIVILEGED |
+			GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED;
 		gpioctl_mock_zsh.lines[i].irq = irq_create_mapping(
 			gpioctl_mock_zsh.irq_domain, i);
 		if (!gpioctl_mock_zsh.lines[i].irq) {
@@ -285,6 +294,8 @@ static int __init gpioctl_mock_init_zsh(void)
 			goto err_mappings;
 		}
 	}
+	gpioctl_mock_zsh.policies[14].flags = 0;
+	gpioctl_mock_zsh.policies[15].flags = GPIOCTL_ZSH_POLICY_RESERVED;
 	ret = gpioctl_register_backend_zsh(&desc, &gpioctl_mock_zsh.controller);
 	if (!ret)
 		return 0;

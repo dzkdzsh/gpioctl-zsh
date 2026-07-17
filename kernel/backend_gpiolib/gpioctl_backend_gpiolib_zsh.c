@@ -1,21 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <linux/bitmap.h>
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/sort.h>
 
 #include "gpioctl_hal_zsh.h"
 
 #define GPIOCTL_GPIOLIB_ZSH_MAX_CHIPS 64
+#define GPIOCTL_GPIOLIB_ZSH_POLICY_CELLS 5
+#define GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY "gpioctl-zsh,line-policies"
 
 struct gpioctl_gpiolib_chip_zsh {
 	struct gpio_device *gdev;
 	struct gpio_chip *chip;
 	struct gpioctl_controller_zsh *controller;
+	struct gpioctl_line_policy_desc_zsh *policies;
 	char name[GPIOCTL_ZSH_BACKEND_NAME_MAX + 1];
 };
 
@@ -149,6 +154,71 @@ static int gpioctl_gpiolib_get_iopad_caps_zsh(
 	return 0;
 }
 
+static int gpioctl_parse_policies_zsh(struct gpioctl_gpiolib_chip_zsh *entry)
+{
+	struct device_node *node = entry->chip->parent ?
+		dev_of_node(entry->chip->parent) : NULL;
+	unsigned long *seen;
+	int cells, ret = 0;
+	unsigned int i;
+
+	entry->policies = kcalloc(entry->chip->ngpio,
+				  sizeof(*entry->policies), GFP_KERNEL);
+	if (!entry->policies)
+		return -ENOMEM;
+	for (i = 0; i < entry->chip->ngpio; i++) {
+		entry->policies[i].safe_direction = GPIOCTL_ZSH_DIRECTION_INPUT;
+		entry->policies[i].safe_bias = GPIOCTL_ZSH_BIAS_DISABLE;
+	}
+	if (!node || !of_find_property(node,
+				       GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, NULL))
+		return 0;
+	cells = of_property_count_u32_elems(node,
+					    GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY);
+	if (cells <= 0 || cells % GPIOCTL_GPIOLIB_ZSH_POLICY_CELLS)
+		return -EINVAL;
+	seen = bitmap_zalloc(entry->chip->ngpio, GFP_KERNEL);
+	if (!seen)
+		return -ENOMEM;
+	for (i = 0; i < (unsigned int)cells;
+	     i += GPIOCTL_GPIOLIB_ZSH_POLICY_CELLS) {
+		struct gpioctl_line_policy_desc_zsh policy;
+		u32 offset;
+
+		ret = of_property_read_u32_index(node,
+			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i, &offset);
+		if (ret)
+			break;
+		ret = of_property_read_u32_index(node,
+			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i + 1,
+			&policy.flags);
+		if (ret)
+			break;
+		ret = of_property_read_u32_index(node,
+			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i + 2,
+			&policy.safe_direction);
+		if (ret)
+			break;
+		ret = of_property_read_u32_index(node,
+			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i + 3,
+			&policy.safe_value);
+		if (ret)
+			break;
+		ret = of_property_read_u32_index(node,
+			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i + 4,
+			&policy.safe_bias);
+		if (ret || offset >= entry->chip->ngpio ||
+		    test_and_set_bit(offset, seen)) {
+			if (!ret)
+				ret = -EINVAL;
+			break;
+		}
+		entry->policies[offset] = policy;
+	}
+	bitmap_free(seen);
+	return ret;
+}
+
 static const struct gpioctl_hal_ops_zsh gpioctl_gpiolib_ops_zsh = {
 	.abi_version = GPIOCTL_ZSH_HAL_ABI_VERSION,
 	.struct_size = sizeof(gpioctl_gpiolib_ops_zsh),
@@ -171,6 +241,8 @@ static void gpioctl_release_discovered_chips_zsh(void)
 	for (i = 0; i < gpioctl_chip_count_zsh; i++) {
 		if (gpioctl_chips_zsh[i].gdev)
 			gpio_device_put(gpioctl_chips_zsh[i].gdev);
+		kfree(gpioctl_chips_zsh[i].policies);
+		gpioctl_chips_zsh[i].policies = NULL;
 		gpioctl_chips_zsh[i].gdev = NULL;
 		gpioctl_chips_zsh[i].chip = NULL;
 	}
@@ -219,6 +291,9 @@ static int __init gpioctl_gpiolib_init_zsh(void)
 		struct gpioctl_backend_desc_zsh desc;
 		const char *label = entry->chip->label ?: dev_name(entry->chip->parent);
 
+		ret = gpioctl_parse_policies_zsh(entry);
+		if (ret)
+			goto rollback;
 		snprintf(entry->name, sizeof(entry->name), "gpiolib:%s", label);
 		desc = (struct gpioctl_backend_desc_zsh) {
 			.abi_version = GPIOCTL_ZSH_HAL_ABI_VERSION,
@@ -236,6 +311,7 @@ static int __init gpioctl_gpiolib_init_zsh(void)
 				GPIOCTL_ZSH_CAP_DEBOUNCE |
 				GPIOCTL_ZSH_CAP_BATCH,
 			.ops = &gpioctl_gpiolib_ops_zsh,
+			.line_policies = entry->policies,
 			.priv = entry,
 			.owner = THIS_MODULE,
 		};

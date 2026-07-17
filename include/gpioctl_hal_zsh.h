@@ -6,12 +6,19 @@
 
 #include "uapi/gpioctl_zsh.h"
 
-#define GPIOCTL_ZSH_HAL_ABI_VERSION 1U
+#define GPIOCTL_ZSH_HAL_ABI_VERSION 2U
 #define GPIOCTL_ZSH_BACKEND_NAME_MAX 31U
 
 struct gpioctl_controller_zsh;
 struct gpioctl_iopad_provider_zsh;
 struct module;
+
+struct gpioctl_line_policy_desc_zsh {
+	u32 flags;
+	u32 safe_direction;
+	u32 safe_value;
+	u32 safe_bias;
+};
 
 struct gpioctl_hal_ops_zsh {
 	u32 abi_version;
@@ -39,6 +46,7 @@ struct gpioctl_backend_desc_zsh {
 	unsigned int line_count;
 	u64 capabilities;
 	const struct gpioctl_hal_ops_zsh *ops;
+	const struct gpioctl_line_policy_desc_zsh *line_policies;
 	void *priv;
 	struct module *owner;
 };

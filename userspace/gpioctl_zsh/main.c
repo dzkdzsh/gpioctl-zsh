@@ -263,7 +263,9 @@ open_target_zsh(const struct cli_options_zsh *options,
 	handle = gpioctl_zsh_open(target->device);
 	if (!handle)
 		return NULL;
-	if (gpioctl_zsh_lease(handle, &offset, 1, 0) ||
+	if (gpioctl_zsh_lease(handle, &offset, 1,
+			direction == GPIOCTL_ZSH_DIRECTION_INPUT ?
+			GPIOCTL_ZSH_LEASE_INPUT_ONLY : 0) ||
 	    gpioctl_zsh_config(handle, offset, direction, initial_value,
 			       GPIOCTL_ZSH_BIAS_AS_IS, target->line_flags, 0)) {
 		int saved_errno = errno;
@@ -334,6 +336,7 @@ static int command_info_zsh(const struct cli_options_zsh *options,
 	struct gpioctl_zsh_handle *handle;
 	struct gpioctl_zsh_caps caps;
 	struct gpioctl_zsh_line_caps line_caps;
+	struct gpioctl_zsh_line_policy policy;
 
 	if (resolve_target_zsh(options, name, &target)) {
 		print_error_zsh(options, "resolve", name);
@@ -341,7 +344,8 @@ static int command_info_zsh(const struct cli_options_zsh *options,
 	}
 	handle = gpioctl_zsh_open(target.device);
 	if (!handle || gpioctl_zsh_get_caps(handle, &caps) ||
-	    gpioctl_zsh_get_line_caps(handle, target.offset, &line_caps)) {
+	    gpioctl_zsh_get_line_caps(handle, target.offset, &line_caps) ||
+	    gpioctl_zsh_get_line_policy(handle, target.offset, &policy)) {
 		print_error_zsh(options, "info", name);
 		gpioctl_zsh_close(handle);
 		return -1;
@@ -350,16 +354,22 @@ static int command_info_zsh(const struct cli_options_zsh *options,
 	if (options->json)
 		printf("{\"device\":\"%s\",\"controller_caps\":%" PRIu64
 		       ",\"line_caps\":%" PRIu64 ",\"drive_min\":%" PRIu32
-		       ",\"drive_max\":%" PRIu32 "}\n",
+		       ",\"drive_max\":%" PRIu32 ",\"policy_flags\":%" PRIu32
+		       ",\"safe_direction\":%" PRIu32 ",\"safe_value\":%" PRIu32
+		       ",\"safe_bias\":%" PRIu32 "}\n",
 		       target.device, (uint64_t)caps.capabilities,
 		       (uint64_t)line_caps.capabilities, line_caps.drive_level_min,
-		       line_caps.drive_level_max);
+		       line_caps.drive_level_max, policy.flags,
+		       policy.safe_direction, policy.safe_value, policy.safe_bias);
 	else
 		printf("controller_caps=0x%016" PRIx64
 		       " line_caps=0x%016" PRIx64 " drive=%" PRIu32 "..%" PRIu32
-		       "\n", (uint64_t)caps.capabilities,
+		       " policy=0x%08" PRIx32 " safe=%s:%" PRIu32
+		       " bias=%" PRIu32 "\n", (uint64_t)caps.capabilities,
 		       (uint64_t)line_caps.capabilities, line_caps.drive_level_min,
-		       line_caps.drive_level_max);
+		       line_caps.drive_level_max, policy.flags,
+		       policy.safe_direction == GPIOCTL_ZSH_DIRECTION_OUTPUT ?
+		       "out" : "in", policy.safe_value, policy.safe_bias);
 	gpioctl_zsh_close(handle);
 	return 0;
 }
@@ -594,7 +604,8 @@ static int command_iopad_zsh(const struct cli_options_zsh *options,
 	if (!options->dry_run) {
 		offset = target.offset;
 		handle = gpioctl_zsh_open(target.device);
-		if (!handle || gpioctl_zsh_lease(handle, &offset, 1, 0) ||
+	if (!handle || gpioctl_zsh_lease(handle, &offset, 1,
+					 GPIOCTL_ZSH_LEASE_INPUT_ONLY) ||
 		    gpioctl_zsh_iopad_config(handle, config.offset, config.bias,
 					    config.drive_level, config.mux_state,
 					    config.flags))

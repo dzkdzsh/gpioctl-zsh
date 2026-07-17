@@ -30,6 +30,10 @@
 
 #define GPIOCTL_ZSH_LEASE_INPUT_ONLY  (1U << 0)
 
+#define GPIOCTL_ZSH_POLICY_ALLOW_UNPRIVILEGED (1U << 0)
+#define GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED     (1U << 1)
+#define GPIOCTL_ZSH_POLICY_RESERVED           (1U << 2)
+
 #define GPIOCTL_ZSH_EVENT_OVERFLOW    (1U << 0)
 #define GPIOCTL_ZSH_EVENT_DEVICE_GONE (1U << 1)
 
@@ -90,6 +94,17 @@ struct gpioctl_zsh_line_caps {
 	__u32 drive_level_min;
 	__u32 drive_level_max;
 	__u32 reserved[4];
+};
+
+struct gpioctl_zsh_line_policy {
+	__u32 abi_version;
+	__u32 struct_size;
+	__u32 offset;
+	__u32 flags;
+	__u32 safe_direction;
+	__u32 safe_value;
+	__u32 safe_bias;
+	__u32 reserved[5];
 };
 
 struct gpioctl_zsh_lease {
@@ -194,6 +209,8 @@ struct gpioctl_zsh_stats {
 	_IOR(GPIOCTL_ZSH_IOC_MAGIC, 0x01, struct gpioctl_zsh_caps)
 #define GPIOCTL_ZSH_IOC_GET_LINE_CAPS \
 	_IOWR(GPIOCTL_ZSH_IOC_MAGIC, 0x02, struct gpioctl_zsh_line_caps)
+#define GPIOCTL_ZSH_IOC_GET_LINE_POLICY \
+	_IOWR(GPIOCTL_ZSH_IOC_MAGIC, 0x03, struct gpioctl_zsh_line_policy)
 #define GPIOCTL_ZSH_IOC_LEASE_REQUEST \
 	_IOW(GPIOCTL_ZSH_IOC_MAGIC, 0x10, struct gpioctl_zsh_lease)
 #define GPIOCTL_ZSH_IOC_LEASE_RELEASE \

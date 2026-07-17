@@ -17,4 +17,71 @@
 			};
 		};
 	};
+
+	/*
+	 * gpioctl-zsh,line-policies records are:
+	 * <offset flags safe-direction safe-physical-value safe-bias>.
+	 * flags 0x1 allows an unprivileged gpio-group lease, 0x2 confirms
+	 * output safety. Bias 1 is the UAPI's explicit bias-disable value.
+	 */
+	fragment@1 {
+		target-path = "/soc/gpio@28034000";
+		__overlay__ {
+			gpioctl-zsh,line-policies =
+				<0  0x3 0 0 1>, /* physical pin 36 */
+				<14 0x3 0 0 1>; /* physical pin 22 */
+		};
+	};
+
+	fragment@2 {
+		target-path = "/soc/gpio@28035000";
+		__overlay__ {
+			gpioctl-zsh,line-policies =
+				<1  0x3 0 0 1>, /* physical pin 32 */
+				<5  0x3 0 0 1>, /* physical pin 18 */
+				<8  0x3 1 1 1>, /* LED20: active-low, off */
+				<11 0x3 1 0 1>, /* physical pin 15 LED, off */
+				<12 0x3 0 0 1>; /* physical pin 13 */
+		};
+	};
+
+	fragment@3 {
+		target-path = "/soc/gpio@28036000";
+		__overlay__ {
+			gpioctl-zsh,line-policies =
+				<1  0x3 0 0 1>, /* physical pin 12 */
+				<2  0x3 0 0 1>, /* physical pin 35 */
+				<5  0x3 0 0 1>, /* physical pin 40 */
+				<6  0x3 0 0 1>, /* physical pin 38 */
+				<8  0x3 0 0 1>, /* physical pin 33 */
+				<10 0x3 0 0 1>; /* physical pin 7 */
+		};
+	};
+
+	fragment@4 {
+		target-path = "/soc/gpio@28037000";
+		__overlay__ {
+			gpioctl-zsh,line-policies =
+				<0 0x3 0 0 1>, /* physical pin 8 */
+				<1 0x3 0 0 1>, /* physical pin 11 */
+				<2 0x3 0 0 1>; /* physical pin 16 */
+		};
+	};
+
+	fragment@5 {
+		target-path = "/soc/gpio@28038000";
+		__overlay__ {
+			gpioctl-zsh,line-policies =
+				<6  0x3 0 0 1>, /* physical pin 23 */
+				<7  0x3 1 0 1>, /* physical pin 19 LED, off */
+				<8  0x3 0 0 1>, /* physical pin 21 */
+				<9  0x3 0 0 1>, /* physical pin 24 */
+				<10 0x3 0 0 1>, /* physical pin 26 */
+				<11 0x3 0 0 1>, /* physical pin 29 */
+				<12 0x3 0 0 1>, /* physical pin 31 */
+				<13 0x3 0 0 1>, /* physical pin 37 */
+				<14 0x3 0 0 1>, /* physical pin 28 */
+				<15 0x3 0 0 1>; /* physical pin 27 */
+		};
+	};
 };

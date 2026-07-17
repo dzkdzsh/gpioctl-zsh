@@ -36,8 +36,21 @@ if [ -x "$project_dir/scripts/unload_zsh.sh" ]; then
 fi
 insmod "$project_dir/build/kernel/gpioctl_core_zsh.ko"
 insmod "$project_dir/build/kernel/gpioctl_mock_zsh.ko" fail_offset=-1
+udevadm trigger --subsystem-match=gpioctl_zsh 2>/dev/null || true
+udevadm settle 2>/dev/null || true
 
 "$cli" --config "$config" list | grep -q '/dev/gpio0_zsh'
+test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/allowlisted_lines)" -eq 14
+test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/output_lines)" -eq 14
+test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/reserved_lines)" -eq 1
+"$project_dir/build/userspace/policy_probe_zsh" /dev/gpio0_zsh
+runuser -u zsh -- "$cli" --config "$config" get /dev/gpio0_zsh:10 \
+	>/dev/null
+if runuser -u zsh -- "$cli" --config "$config" get /dev/gpio0_zsh:14 \
+	>/dev/null 2>&1; then
+	echo "unprivileged non-allowlisted lease unexpectedly succeeded" >&2
+	exit 1
+fi
 printf '%s\n' \
 	'acquire /dev/gpio0_zsh:1 out 0' \
 	'value /dev/gpio0_zsh:1 1' \

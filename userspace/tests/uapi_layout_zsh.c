@@ -9,6 +9,8 @@ _Static_assert(sizeof(struct gpioctl_zsh_batch_op) == 32, "batch op ABI drift");
 _Static_assert(sizeof(struct gpioctl_zsh_abi_info) == 32, "ABI info drift");
 _Static_assert(sizeof(struct gpioctl_zsh_iopad_config) == 48,
 	       "IOPAD config ABI drift");
+_Static_assert(sizeof(struct gpioctl_zsh_line_policy) == 48,
+	       "line policy ABI drift");
 
 int main(void)
 {
@@ -17,6 +19,8 @@ int main(void)
 	       sizeof(struct gpioctl_zsh_abi_info));
 	assert(_IOC_SIZE(GPIOCTL_ZSH_IOC_BATCH_EXEC) ==
 	       sizeof(struct gpioctl_zsh_batch));
+	assert(_IOC_SIZE(GPIOCTL_ZSH_IOC_GET_LINE_POLICY) ==
+	       sizeof(struct gpioctl_zsh_line_policy));
 	puts("uapi_layout_zsh: PASS");
 	return 0;
 }

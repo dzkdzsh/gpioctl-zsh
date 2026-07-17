@@ -106,6 +106,21 @@ int gpioctl_zsh_get_line_caps(struct gpioctl_zsh_handle *handle,
 	return ioctl(handle->fd, GPIOCTL_ZSH_IOC_GET_LINE_CAPS, caps);
 }
 
+int gpioctl_zsh_get_line_policy(struct gpioctl_zsh_handle *handle,
+				uint32_t offset,
+				struct gpioctl_zsh_line_policy *policy)
+{
+	if (!handle || !policy) {
+		errno = EINVAL;
+		return -1;
+	}
+	memset(policy, 0, sizeof(*policy));
+	policy->abi_version = GPIOCTL_ZSH_ABI_VERSION;
+	policy->struct_size = (uint32_t)sizeof(*policy);
+	policy->offset = offset;
+	return ioctl(handle->fd, GPIOCTL_ZSH_IOC_GET_LINE_POLICY, policy);
+}
+
 int gpioctl_zsh_lease(struct gpioctl_zsh_handle *handle,
 		      const uint32_t *offsets, size_t count, uint32_t flags)
 {

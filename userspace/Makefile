@@ -14,10 +14,11 @@ LIB_STATIC := $(BUILD_DIR)/libgpioctl_zsh.a
 CLI := $(BUILD_DIR)/gpioctl_zsh
 LAYOUT_TEST := $(BUILD_DIR)/uapi_layout_zsh
 EVENT_EPOLL_TEST := $(BUILD_DIR)/event_epoll_zsh
+POLICY_PROBE_TEST := $(BUILD_DIR)/policy_probe_zsh
 
 .PHONY: all clean check
 
-all: $(CLI) $(LAYOUT_TEST) $(EVENT_EPOLL_TEST)
+all: $(CLI) $(LAYOUT_TEST) $(EVENT_EPOLL_TEST) $(POLICY_PROBE_TEST)
 
 $(BUILD_DIR):
 	mkdir -p $@
@@ -38,6 +39,9 @@ $(LAYOUT_TEST): tests/uapi_layout_zsh.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 $(EVENT_EPOLL_TEST): tests/event_epoll_zsh.c $(LIB_STATIC) | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+
+$(POLICY_PROBE_TEST): tests/policy_probe_zsh.c $(LIB_STATIC) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
 
 check: all
