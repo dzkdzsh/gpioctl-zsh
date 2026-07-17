@@ -1,0 +1,1020 @@
+// SPDX-License-Identifier: GPL-2.0-only
+#define _POSIX_C_SOURCE 200809L
+
+#include <ctype.h>
+#include <errno.h>
+#include <glob.h>
+#include <inttypes.h>
+#include <poll.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
+#include "gpioctl_zsh.h"
+
+#define GPIOCTL_CLI_MAX_PATH 256
+#define GPIOCTL_CLI_MAX_NAME 64
+#define GPIOCTL_CLI_MAX_TOKENS 64
+#define GPIOCTL_CLI_MAX_HELD 32
+
+struct cli_options_zsh {
+	bool json;
+	bool strict;
+	bool dry_run;
+	const char *config_path;
+};
+
+struct target_zsh {
+	char alias[GPIOCTL_CLI_MAX_NAME];
+	char device[GPIOCTL_CLI_MAX_PATH];
+	uint32_t offset;
+	uint32_t line_flags;
+	char pad[GPIOCTL_CLI_MAX_NAME];
+	char physical_pin[GPIOCTL_CLI_MAX_NAME];
+	char description[GPIOCTL_CLI_MAX_NAME];
+};
+
+struct held_line_zsh {
+	bool used;
+	struct target_zsh target;
+	struct gpioctl_zsh_handle *handle;
+};
+
+struct runtime_zsh {
+	struct cli_options_zsh options;
+	struct held_line_zsh held[GPIOCTL_CLI_MAX_HELD];
+};
+
+static void usage_zsh(FILE *stream)
+{
+	fputs(
+		"Usage: gpioctl_zsh [--json] [--strict] [--dry-run] "
+		"[--config FILE] COMMAND ...\n"
+		"Commands:\n"
+		"  list\n"
+		"  resolve TARGET\n"
+		"  info TARGET\n"
+		"  get TARGET\n"
+		"  set TARGET VALUE [HOLD_MS]\n"
+		"  blink TARGET COUNT ON_MS OFF_MS\n"
+		"  pair-blink TARGET_A TARGET_B COUNT INTERVAL_MS\n"
+		"  batch-set DEVICE HOLD_MS OFFSET=VALUE ...\n"
+		"  watch TARGET rising|falling|both TIMEOUT_MS [COUNT]\n"
+		"  stats TARGET|DEVICE\n"
+		"  acquire TARGET in|out [INITIAL_VALUE]\n"
+		"  value TARGET [VALUE]\n"
+		"  release TARGET\n"
+		"  sleep MILLISECONDS\n"
+		"  run FILE|-\n"
+		"  shell\n",
+		stream);
+}
+
+static int parse_u32_zsh(const char *text, uint32_t *value)
+{
+	char *end = NULL;
+	unsigned long parsed;
+
+	if (!text || !*text || !value)
+		return -1;
+	errno = 0;
+	parsed = strtoul(text, &end, 0);
+	if (errno || !end || *end || parsed > UINT32_MAX)
+		return -1;
+	*value = (uint32_t)parsed;
+	return 0;
+}
+
+static int sleep_ms_zsh(uint32_t milliseconds)
+{
+	struct timespec request = {
+		.tv_sec = (time_t)(milliseconds / 1000U),
+		.tv_nsec = (long)(milliseconds % 1000U) * 1000000L,
+	};
+
+	while (nanosleep(&request, &request) && errno == EINTR)
+		;
+	return errno == EINTR ? -1 : 0;
+}
+
+static const char *default_config_path_zsh(void)
+{
+	const char *environment = getenv("GPIOCTL_ZSH_BOARD_CONFIG");
+
+	if (environment && *environment)
+		return environment;
+	if (!access("config/phytium-pi-v1.conf", R_OK))
+		return "config/phytium-pi-v1.conf";
+	if (!access("../config/phytium-pi-v1.conf", R_OK))
+		return "../config/phytium-pi-v1.conf";
+	return "/etc/gpioctl_zsh/board.conf";
+}
+
+static int parse_generic_gpio_name_zsh(const char *name,
+				       struct target_zsh *target)
+{
+	unsigned int controller, offset;
+	char trailing;
+
+	if (sscanf(name, "GPIO%u_%u%c", &controller, &offset, &trailing) != 2 ||
+	    controller > 255U || offset > 255U)
+		return -1;
+	if (snprintf(target->device, sizeof(target->device),
+		     "/dev/gpio%u_zsh", controller) >= (int)sizeof(target->device))
+		return -1;
+	target->offset = offset;
+	(void)snprintf(target->alias, sizeof(target->alias), "%s", name);
+	return 0;
+}
+
+static int parse_direct_target_zsh(const char *text, struct target_zsh *target)
+{
+	const char *colon = strrchr(text, ':');
+	uint32_t offset;
+	size_t device_length;
+
+	if (!colon || colon == text || parse_u32_zsh(colon + 1, &offset))
+		return -1;
+	device_length = (size_t)(colon - text);
+	if (device_length >= sizeof(target->device))
+		return -1;
+	memcpy(target->device, text, device_length);
+	target->device[device_length] = '\0';
+	target->offset = offset;
+	(void)snprintf(target->alias, sizeof(target->alias), "%s", text);
+	return 0;
+}
+
+static int resolve_from_file_zsh(const char *path, const char *name,
+				 struct target_zsh *target)
+{
+	FILE *stream;
+	char line[512];
+	unsigned int line_number = 0;
+
+	stream = fopen(path, "r");
+	if (!stream)
+		return -1;
+	while (fgets(line, sizeof(line), stream)) {
+		struct target_zsh candidate = {0};
+		unsigned int active_low;
+		unsigned int offset;
+		int fields;
+
+		line_number++;
+		if (line[0] == '#' || isspace((unsigned char)line[0]))
+			continue;
+		fields = sscanf(line, "%63s %255s %u %u %63s %63s %63s",
+				candidate.alias, candidate.device, &offset,
+				&active_low, candidate.pad, candidate.physical_pin,
+				candidate.description);
+		if (fields != 7 || active_low > 1U) {
+			fprintf(stderr, "%s:%u: invalid board mapping\n", path,
+				line_number);
+			continue;
+		}
+		if (strcmp(candidate.alias, name))
+			continue;
+		candidate.offset = offset;
+		candidate.line_flags = active_low ? GPIOCTL_ZSH_LINE_ACTIVE_LOW : 0U;
+		*target = candidate;
+		fclose(stream);
+		return 0;
+	}
+	fclose(stream);
+	errno = ENOENT;
+	return -1;
+}
+
+static int resolve_target_zsh(const struct cli_options_zsh *options,
+			      const char *name, struct target_zsh *target)
+{
+	const char *config_path = options->config_path ?: default_config_path_zsh();
+
+	memset(target, 0, sizeof(*target));
+	if (!resolve_from_file_zsh(config_path, name, target))
+		return 0;
+	if (!strncmp(name, "/dev/", 5))
+		return parse_direct_target_zsh(name, target);
+	if (!strncmp(name, "GPIO", 4))
+		return parse_generic_gpio_name_zsh(name, target);
+	errno = ENOENT;
+	return -1;
+}
+
+static void print_error_zsh(const struct cli_options_zsh *options,
+			    const char *operation, const char *subject)
+{
+	if (options->json)
+		fprintf(stderr,
+			"{\"ok\":false,\"operation\":\"%s\",\"subject\":\"%s\","
+			"\"errno\":%d,\"error\":\"%s\"}\n",
+			operation, subject ?: "", errno, strerror(errno));
+	else
+		fprintf(stderr, "%s %s failed: %s\n", operation,
+			subject ?: "", strerror(errno));
+}
+
+static void print_target_zsh(const struct cli_options_zsh *options,
+			     const struct target_zsh *target)
+{
+	if (options->json)
+		printf("{\"ok\":true,\"alias\":\"%s\",\"device\":\"%s\","
+		       "\"offset\":%" PRIu32 ",\"active_low\":%s,"
+		       "\"pad\":\"%s\",\"physical_pin\":\"%s\","
+		       "\"description\":\"%s\"}\n",
+		       target->alias, target->device, target->offset,
+		       target->line_flags ? "true" : "false", target->pad,
+		       target->physical_pin, target->description);
+	else
+		printf("alias=%s device=%s offset=%" PRIu32
+		       " active_low=%u pad=%s physical_pin=%s description=%s\n",
+		       target->alias, target->device, target->offset,
+		       target->line_flags ? 1U : 0U, target->pad,
+		       target->physical_pin, target->description);
+}
+
+static struct gpioctl_zsh_handle *
+open_target_zsh(const struct cli_options_zsh *options,
+		const struct target_zsh *target, uint32_t direction,
+		uint32_t initial_value)
+{
+	struct gpioctl_zsh_handle *handle;
+	uint32_t offset = target->offset;
+
+	if (options->dry_run)
+		return (struct gpioctl_zsh_handle *)(uintptr_t)1U;
+	handle = gpioctl_zsh_open(target->device);
+	if (!handle)
+		return NULL;
+	if (gpioctl_zsh_lease(handle, &offset, 1, 0) ||
+	    gpioctl_zsh_config(handle, offset, direction, initial_value,
+			       GPIOCTL_ZSH_BIAS_AS_IS, target->line_flags, 0)) {
+		int saved_errno = errno;
+
+		gpioctl_zsh_close(handle);
+		errno = saved_errno;
+		return NULL;
+	}
+	return handle;
+}
+
+static void close_target_zsh(const struct cli_options_zsh *options,
+			     struct gpioctl_zsh_handle *handle)
+{
+	if (!options->dry_run)
+		gpioctl_zsh_close(handle);
+}
+
+static int command_list_zsh(const struct cli_options_zsh *options)
+{
+	glob_t matches = {0};
+	size_t i;
+	int ret;
+
+	ret = glob("/dev/gpio*_zsh", 0, NULL, &matches);
+	if (ret == GLOB_NOMATCH) {
+		errno = ENODEV;
+		print_error_zsh(options, "list", "/dev/gpio*_zsh");
+		return -1;
+	}
+	if (ret) {
+		errno = EIO;
+		return -1;
+	}
+	for (i = 0; i < matches.gl_pathc; i++) {
+		struct gpioctl_zsh_handle *handle = gpioctl_zsh_open(matches.gl_pathv[i]);
+		struct gpioctl_zsh_caps caps;
+
+		if (!handle || gpioctl_zsh_get_caps(handle, &caps)) {
+			print_error_zsh(options, "inspect", matches.gl_pathv[i]);
+			gpioctl_zsh_close(handle);
+			if (options->strict) {
+				globfree(&matches);
+				return -1;
+			}
+			continue;
+		}
+		if (options->json)
+			printf("{\"device\":\"%s\",\"controller\":%" PRIu32
+			       ",\"lines\":%" PRIu32 ",\"caps\":%" PRIu64 "}\n",
+			       matches.gl_pathv[i], caps.controller_id,
+			       caps.line_count, (uint64_t)caps.capabilities);
+		else
+			printf("%s controller=%" PRIu32 " lines=%" PRIu32
+			       " caps=0x%016" PRIx64 "\n",
+			       matches.gl_pathv[i], caps.controller_id,
+			       caps.line_count, (uint64_t)caps.capabilities);
+		gpioctl_zsh_close(handle);
+	}
+	globfree(&matches);
+	return 0;
+}
+
+static int command_info_zsh(const struct cli_options_zsh *options,
+			    const char *name)
+{
+	struct target_zsh target;
+	struct gpioctl_zsh_handle *handle;
+	struct gpioctl_zsh_caps caps;
+	struct gpioctl_zsh_line_caps line_caps;
+
+	if (resolve_target_zsh(options, name, &target)) {
+		print_error_zsh(options, "resolve", name);
+		return -1;
+	}
+	handle = gpioctl_zsh_open(target.device);
+	if (!handle || gpioctl_zsh_get_caps(handle, &caps) ||
+	    gpioctl_zsh_get_line_caps(handle, target.offset, &line_caps)) {
+		print_error_zsh(options, "info", name);
+		gpioctl_zsh_close(handle);
+		return -1;
+	}
+	print_target_zsh(options, &target);
+	if (options->json)
+		printf("{\"device\":\"%s\",\"controller_caps\":%" PRIu64
+		       ",\"line_caps\":%" PRIu64 ",\"drive_min\":%" PRIu32
+		       ",\"drive_max\":%" PRIu32 "}\n",
+		       target.device, (uint64_t)caps.capabilities,
+		       (uint64_t)line_caps.capabilities, line_caps.drive_level_min,
+		       line_caps.drive_level_max);
+	else
+		printf("controller_caps=0x%016" PRIx64
+		       " line_caps=0x%016" PRIx64 " drive=%" PRIu32 "..%" PRIu32
+		       "\n", (uint64_t)caps.capabilities,
+		       (uint64_t)line_caps.capabilities, line_caps.drive_level_min,
+		       line_caps.drive_level_max);
+	gpioctl_zsh_close(handle);
+	return 0;
+}
+
+static int command_get_zsh(const struct cli_options_zsh *options,
+			   const char *name)
+{
+	struct target_zsh target;
+	struct gpioctl_zsh_handle *handle;
+	uint32_t value, offset;
+	int ret;
+
+	if (resolve_target_zsh(options, name, &target)) {
+		print_error_zsh(options, "resolve", name);
+		return -1;
+	}
+	handle = open_target_zsh(options, &target, GPIOCTL_ZSH_DIRECTION_INPUT, 0);
+	if (!handle) {
+		print_error_zsh(options, "get", name);
+		return -1;
+	}
+	offset = target.offset;
+	ret = options->dry_run ? 0 : gpioctl_zsh_get_values(handle, &offset, 1, &value);
+	if (ret)
+		print_error_zsh(options, "get", name);
+	else if (options->json)
+		printf("{\"ok\":true,\"target\":\"%s\",\"value\":%" PRIu32 "}\n",
+		       name, options->dry_run ? 0U : value & 1U);
+	else
+		printf("%s=%" PRIu32 "%s\n", name,
+		       options->dry_run ? 0U : value & 1U,
+		       options->dry_run ? " dry-run" : "");
+	close_target_zsh(options, handle);
+	return ret;
+}
+
+static int command_set_zsh(const struct cli_options_zsh *options,
+			   const char *name, uint32_t value, uint32_t hold_ms)
+{
+	struct target_zsh target;
+	struct gpioctl_zsh_handle *handle;
+
+	if (value > 1U) {
+		errno = EINVAL;
+		return -1;
+	}
+	if (resolve_target_zsh(options, name, &target)) {
+		print_error_zsh(options, "resolve", name);
+		return -1;
+	}
+	handle = open_target_zsh(options, &target, GPIOCTL_ZSH_DIRECTION_OUTPUT,
+				 value);
+	if (!handle) {
+		print_error_zsh(options, "set", name);
+		return -1;
+	}
+	if (options->json)
+		printf("{\"ok\":true,\"target\":\"%s\",\"value\":%" PRIu32
+		       ",\"hold_ms\":%" PRIu32 ",\"dry_run\":%s}\n",
+		       name, value, hold_ms, options->dry_run ? "true" : "false");
+	else
+		printf("%s=%" PRIu32 " hold_ms=%" PRIu32 "%s\n", name, value,
+		       hold_ms, options->dry_run ? " dry-run" : "");
+	if (hold_ms)
+		(void)sleep_ms_zsh(hold_ms);
+	close_target_zsh(options, handle);
+	return 0;
+}
+
+static int command_blink_zsh(const struct cli_options_zsh *options,
+			     const char *name, uint32_t count,
+			     uint32_t on_ms, uint32_t off_ms)
+{
+	struct target_zsh target;
+	struct gpioctl_zsh_handle *handle;
+	uint32_t offset, cycle;
+	int ret = 0;
+
+	if (!count || resolve_target_zsh(options, name, &target)) {
+		errno = EINVAL;
+		print_error_zsh(options, "blink", name);
+		return -1;
+	}
+	handle = open_target_zsh(options, &target, GPIOCTL_ZSH_DIRECTION_OUTPUT, 0);
+	if (!handle) {
+		print_error_zsh(options, "blink", name);
+		return -1;
+	}
+	offset = target.offset;
+	for (cycle = 0; cycle < count; cycle++) {
+		if (!options->dry_run && gpioctl_zsh_set_values(handle, &offset, 1, 1U)) {
+			ret = -1;
+			break;
+		}
+		(void)sleep_ms_zsh(on_ms);
+		if (!options->dry_run && gpioctl_zsh_set_values(handle, &offset, 1, 0U)) {
+			ret = -1;
+			break;
+		}
+		(void)sleep_ms_zsh(off_ms);
+	}
+	if (ret)
+		print_error_zsh(options, "blink", name);
+	else if (options->json)
+		printf("{\"ok\":true,\"target\":\"%s\",\"cycles\":%" PRIu32 "}\n",
+		       name, count);
+	else
+		printf("blink target=%s cycles=%" PRIu32 " final=0\n", name, count);
+	close_target_zsh(options, handle);
+	return ret;
+}
+
+static int command_pair_blink_zsh(const struct cli_options_zsh *options,
+				  const char *name_a, const char *name_b,
+				  uint32_t count, uint32_t interval_ms)
+{
+	struct target_zsh targets[2];
+	struct gpioctl_zsh_handle *handles[2] = {NULL, NULL};
+	uint32_t offsets[2];
+	uint32_t cycle;
+	int ret = -1;
+
+	if (!count || resolve_target_zsh(options, name_a, &targets[0]) ||
+	    resolve_target_zsh(options, name_b, &targets[1])) {
+		errno = EINVAL;
+		goto out;
+	}
+	handles[0] = open_target_zsh(options, &targets[0],
+				     GPIOCTL_ZSH_DIRECTION_OUTPUT, 0);
+	if (!handles[0])
+		goto out;
+	handles[1] = open_target_zsh(options, &targets[1],
+				     GPIOCTL_ZSH_DIRECTION_OUTPUT, 0);
+	if (!handles[1])
+		goto out;
+	offsets[0] = targets[0].offset;
+	offsets[1] = targets[1].offset;
+	for (cycle = 0; cycle < count; cycle++) {
+		if (!options->dry_run &&
+		    (gpioctl_zsh_set_values(handles[0], &offsets[0], 1, 1U) ||
+		     gpioctl_zsh_set_values(handles[1], &offsets[1], 1, 0U)))
+			goto out;
+		(void)sleep_ms_zsh(interval_ms);
+		if (!options->dry_run &&
+		    (gpioctl_zsh_set_values(handles[0], &offsets[0], 1, 0U) ||
+		     gpioctl_zsh_set_values(handles[1], &offsets[1], 1, 1U)))
+			goto out;
+		(void)sleep_ms_zsh(interval_ms);
+	}
+	if (!options->dry_run) {
+		(void)gpioctl_zsh_set_values(handles[0], &offsets[0], 1, 0U);
+		(void)gpioctl_zsh_set_values(handles[1], &offsets[1], 1, 0U);
+	}
+	ret = 0;
+out:
+	if (ret)
+		print_error_zsh(options, "pair-blink", name_a);
+	else if (options->json)
+		printf("{\"ok\":true,\"a\":\"%s\",\"b\":\"%s\","
+		       "\"cycles\":%" PRIu32 "}\n", name_a, name_b, count);
+	else
+		printf("pair-blink a=%s b=%s cycles=%" PRIu32 " final=0,0\n",
+		       name_a, name_b, count);
+	close_target_zsh(options, handles[1]);
+	close_target_zsh(options, handles[0]);
+	return ret;
+}
+
+static int command_stats_zsh(const struct cli_options_zsh *options,
+			     const char *name)
+{
+	struct target_zsh target;
+	struct gpioctl_zsh_handle *handle;
+	struct gpioctl_zsh_stats stats;
+	const char *device = name;
+
+	if (strncmp(name, "/dev/", 5)) {
+		if (resolve_target_zsh(options, name, &target)) {
+			print_error_zsh(options, "resolve", name);
+			return -1;
+		}
+		device = target.device;
+	}
+	handle = gpioctl_zsh_open(device);
+	if (!handle || gpioctl_zsh_get_stats(handle, &stats)) {
+		print_error_zsh(options, "stats", device);
+		gpioctl_zsh_close(handle);
+		return -1;
+	}
+	if (options->json)
+		printf("{\"device\":\"%s\",\"operations\":%" PRIu64
+		       ",\"errors\":%" PRIu64 ",\"denials\":%" PRIu64
+		       ",\"conflicts\":%" PRIu64 ",\"events\":%" PRIu64
+		       ",\"drops\":%" PRIu64 ",\"active_leases\":%" PRIu32 "}\n",
+		       device, (uint64_t)stats.operations, (uint64_t)stats.errors,
+		       (uint64_t)stats.denials, (uint64_t)stats.lease_conflicts,
+		       (uint64_t)stats.events, (uint64_t)stats.event_drops,
+		       stats.active_leases);
+	else
+		printf("device=%s operations=%" PRIu64 " errors=%" PRIu64
+		       " denials=%" PRIu64 " conflicts=%" PRIu64
+		       " events=%" PRIu64 " drops=%" PRIu64
+		       " active_leases=%" PRIu32 "\n", device,
+		       (uint64_t)stats.operations, (uint64_t)stats.errors,
+		       (uint64_t)stats.denials, (uint64_t)stats.lease_conflicts,
+		       (uint64_t)stats.events, (uint64_t)stats.event_drops,
+		       stats.active_leases);
+	gpioctl_zsh_close(handle);
+	return 0;
+}
+
+static struct held_line_zsh *find_held_zsh(struct runtime_zsh *runtime,
+					  const struct target_zsh *target)
+{
+	size_t i;
+
+	for (i = 0; i < GPIOCTL_CLI_MAX_HELD; i++)
+		if (runtime->held[i].used &&
+		    runtime->held[i].target.offset == target->offset &&
+		    !strcmp(runtime->held[i].target.device, target->device))
+			return &runtime->held[i];
+	return NULL;
+}
+
+static int command_acquire_zsh(struct runtime_zsh *runtime, const char *name,
+			       uint32_t direction, uint32_t initial_value)
+{
+	struct target_zsh target;
+	struct held_line_zsh *slot = NULL;
+	size_t i;
+
+	if (resolve_target_zsh(&runtime->options, name, &target))
+		return -1;
+	if (find_held_zsh(runtime, &target)) {
+		errno = EALREADY;
+		return -1;
+	}
+	for (i = 0; i < GPIOCTL_CLI_MAX_HELD; i++)
+		if (!runtime->held[i].used) {
+			slot = &runtime->held[i];
+			break;
+		}
+	if (!slot) {
+		errno = ENOSPC;
+		return -1;
+	}
+	slot->handle = open_target_zsh(&runtime->options, &target, direction,
+				       initial_value);
+	if (!slot->handle)
+		return -1;
+	slot->target = target;
+	slot->used = true;
+	printf("acquired %s direction=%s initial=%" PRIu32 "%s\n", name,
+	       direction == GPIOCTL_ZSH_DIRECTION_OUTPUT ? "out" : "in",
+	       initial_value, runtime->options.dry_run ? " dry-run" : "");
+	return 0;
+}
+
+static int command_value_zsh(struct runtime_zsh *runtime, const char *name,
+			     const uint32_t *new_value)
+{
+	struct target_zsh target;
+	struct held_line_zsh *slot;
+	uint32_t value = 0;
+	int ret;
+
+	if (resolve_target_zsh(&runtime->options, name, &target))
+		return -1;
+	slot = find_held_zsh(runtime, &target);
+	if (!slot) {
+		errno = ENOENT;
+		return -1;
+	}
+	if (runtime->options.dry_run)
+		ret = 0;
+	else if (new_value)
+		ret = gpioctl_zsh_set_values(slot->handle, &target.offset, 1,
+					     *new_value);
+	else
+		ret = gpioctl_zsh_get_values(slot->handle, &target.offset, 1, &value);
+	if (ret)
+		return -1;
+	printf("%s=%" PRIu32 "%s\n", name, new_value ? *new_value : value & 1U,
+	       runtime->options.dry_run ? " dry-run" : "");
+	return 0;
+}
+
+static int command_release_zsh(struct runtime_zsh *runtime, const char *name)
+{
+	struct target_zsh target;
+	struct held_line_zsh *slot;
+
+	if (resolve_target_zsh(&runtime->options, name, &target))
+		return -1;
+	slot = find_held_zsh(runtime, &target);
+	if (!slot) {
+		errno = ENOENT;
+		return -1;
+	}
+	close_target_zsh(&runtime->options, slot->handle);
+	memset(slot, 0, sizeof(*slot));
+	printf("released %s\n", name);
+	return 0;
+}
+
+static void cleanup_runtime_zsh(struct runtime_zsh *runtime)
+{
+	size_t i;
+
+	for (i = 0; i < GPIOCTL_CLI_MAX_HELD; i++)
+		if (runtime->held[i].used) {
+			close_target_zsh(&runtime->options, runtime->held[i].handle);
+			memset(&runtime->held[i], 0, sizeof(runtime->held[i]));
+		}
+}
+
+static int parse_edge_zsh(const char *text, uint32_t *edge)
+{
+	if (!strcmp(text, "rising"))
+		*edge = GPIOCTL_ZSH_EDGE_RISING;
+	else if (!strcmp(text, "falling"))
+		*edge = GPIOCTL_ZSH_EDGE_FALLING;
+	else if (!strcmp(text, "both"))
+		*edge = GPIOCTL_ZSH_EDGE_BOTH;
+	else
+		return -1;
+	return 0;
+}
+
+static int command_watch_zsh(const struct cli_options_zsh *options,
+			     const char *name, uint32_t edge,
+			     uint32_t timeout_ms, uint32_t wanted)
+{
+	struct target_zsh target;
+	struct gpioctl_zsh_handle *handle;
+	struct pollfd pollfd;
+	uint32_t received = 0;
+	int ret = -1;
+
+	if (resolve_target_zsh(options, name, &target))
+		return -1;
+	handle = open_target_zsh(options, &target, GPIOCTL_ZSH_DIRECTION_INPUT, 0);
+	if (!handle)
+		return -1;
+	if (options->dry_run) {
+		printf("watch %s dry-run\n", name);
+		ret = 0;
+		goto out;
+	}
+	if (gpioctl_zsh_event_config(handle, target.offset, edge, 0))
+		goto out;
+	pollfd.fd = gpioctl_zsh_fd(handle);
+	pollfd.events = POLLIN;
+	while (!wanted || received < wanted) {
+		struct gpioctl_zsh_event events[8];
+		ssize_t bytes;
+		size_t i, count;
+		int poll_ret = poll(&pollfd, 1,
+				    timeout_ms > (uint32_t)INT32_MAX ? INT32_MAX :
+				    (int)timeout_ms);
+
+		if (!poll_ret) {
+			errno = ETIMEDOUT;
+			break;
+		}
+		if (poll_ret < 0)
+			goto out;
+		bytes = gpioctl_zsh_read_events(handle, events, 8);
+		if (bytes < 0)
+			goto out;
+		count = (size_t)bytes / sizeof(events[0]);
+		for (i = 0; i < count; i++) {
+			printf("event target=%s edge=%" PRIu32 " timestamp_ns=%" PRIu64
+			       " sequence=%" PRIu64 " flags=0x%" PRIx32 "\n",
+			       name, events[i].edge, (uint64_t)events[i].timestamp_ns,
+			       (uint64_t)events[i].sequence, events[i].flags);
+			received++;
+		}
+	}
+	if (wanted && received >= wanted)
+		ret = 0;
+out:
+	if (ret)
+		print_error_zsh(options, "watch", name);
+	close_target_zsh(options, handle);
+	return ret;
+}
+
+static int command_batch_set_zsh(const struct cli_options_zsh *options,
+				 const char *device, uint32_t hold_ms,
+				 int assignment_count, char **assignments)
+{
+	struct gpioctl_zsh_handle *handle = NULL;
+	struct gpioctl_zsh_batch batch = {
+		.abi_version = GPIOCTL_ZSH_ABI_VERSION,
+		.struct_size = sizeof(batch),
+		.count = (uint32_t)assignment_count,
+		.failed_index = -1,
+	};
+	uint32_t offsets[GPIOCTL_ZSH_MAX_BATCH_OPS];
+	int i, ret = -1;
+
+	if (assignment_count <= 0 ||
+	    assignment_count > (int)GPIOCTL_ZSH_MAX_BATCH_OPS) {
+		errno = EINVAL;
+		return -1;
+	}
+	for (i = 0; i < assignment_count; i++) {
+		char *equals = strchr(assignments[i], '=');
+		uint32_t value;
+
+		if (!equals || equals == assignments[i]) {
+			errno = EINVAL;
+			return -1;
+		}
+		*equals = '\0';
+		if (parse_u32_zsh(assignments[i], &offsets[i]) ||
+		    parse_u32_zsh(equals + 1, &value) || value > 1U) {
+			*equals = '=';
+			errno = EINVAL;
+			return -1;
+		}
+		*equals = '=';
+		batch.ops[i].opcode = GPIOCTL_ZSH_BATCH_CONFIG;
+		batch.ops[i].offset = offsets[i];
+		batch.ops[i].arg0 = GPIOCTL_ZSH_DIRECTION_OUTPUT;
+		batch.ops[i].arg1 = value;
+	}
+	if (options->dry_run) {
+		printf("batch-set device=%s count=%d hold_ms=%" PRIu32 " dry-run\n",
+		       device, assignment_count, hold_ms);
+		return 0;
+	}
+	handle = gpioctl_zsh_open(device);
+	if (!handle || gpioctl_zsh_lease(handle, offsets,
+					 (size_t)assignment_count, 0) ||
+	    gpioctl_zsh_batch(handle, &batch))
+		goto out;
+	printf("batch-set device=%s count=%d hold_ms=%" PRIu32 "\n", device,
+	       assignment_count, hold_ms);
+	(void)sleep_ms_zsh(hold_ms);
+	ret = 0;
+out:
+	if (ret)
+		print_error_zsh(options, "batch-set", device);
+	gpioctl_zsh_close(handle);
+	return ret;
+}
+
+static int execute_tokens_zsh(struct runtime_zsh *runtime, int argc, char **argv)
+{
+	uint32_t a, b, c, d;
+
+	if (!argc)
+		return 0;
+	if (!strcmp(argv[0], "list") && argc == 1)
+		return command_list_zsh(&runtime->options);
+	if (!strcmp(argv[0], "resolve") && argc == 2) {
+		struct target_zsh target;
+
+		if (resolve_target_zsh(&runtime->options, argv[1], &target))
+			return -1;
+		print_target_zsh(&runtime->options, &target);
+		return 0;
+	}
+	if (!strcmp(argv[0], "info") && argc == 2)
+		return command_info_zsh(&runtime->options, argv[1]);
+	if (!strcmp(argv[0], "get") && argc == 2)
+		return command_get_zsh(&runtime->options, argv[1]);
+	if (!strcmp(argv[0], "set") && (argc == 3 || argc == 4) &&
+	    !parse_u32_zsh(argv[2], &a) &&
+	    (argc == 3 || !parse_u32_zsh(argv[3], &b)))
+		return command_set_zsh(&runtime->options, argv[1], a,
+				       argc == 4 ? b : 0U);
+	if (!strcmp(argv[0], "blink") && argc == 5 &&
+	    !parse_u32_zsh(argv[2], &a) && !parse_u32_zsh(argv[3], &b) &&
+	    !parse_u32_zsh(argv[4], &c))
+		return command_blink_zsh(&runtime->options, argv[1], a, b, c);
+	if (!strcmp(argv[0], "pair-blink") && argc == 5 &&
+	    !parse_u32_zsh(argv[3], &a) && !parse_u32_zsh(argv[4], &b))
+		return command_pair_blink_zsh(&runtime->options, argv[1], argv[2],
+					      a, b);
+	if (!strcmp(argv[0], "stats") && argc == 2)
+		return command_stats_zsh(&runtime->options, argv[1]);
+	if (!strcmp(argv[0], "sleep") && argc == 2 &&
+	    !parse_u32_zsh(argv[1], &a))
+		return sleep_ms_zsh(a);
+	if (!strcmp(argv[0], "acquire") && (argc == 3 || argc == 4)) {
+		uint32_t direction;
+
+		if (!strcmp(argv[2], "in"))
+			direction = GPIOCTL_ZSH_DIRECTION_INPUT;
+		else if (!strcmp(argv[2], "out"))
+			direction = GPIOCTL_ZSH_DIRECTION_OUTPUT;
+		else
+			goto invalid;
+		a = 0;
+		if (argc == 4 && parse_u32_zsh(argv[3], &a))
+			goto invalid;
+		if (a > 1U)
+			goto invalid;
+		return command_acquire_zsh(runtime, argv[1], direction, a);
+	}
+	if (!strcmp(argv[0], "value") && (argc == 2 || argc == 3)) {
+		if (argc == 3 && (parse_u32_zsh(argv[2], &a) || a > 1U))
+			goto invalid;
+		return command_value_zsh(runtime, argv[1], argc == 3 ? &a : NULL);
+	}
+	if (!strcmp(argv[0], "release") && argc == 2)
+		return command_release_zsh(runtime, argv[1]);
+	if (!strcmp(argv[0], "watch") && (argc == 5 || argc == 6) &&
+	    !parse_edge_zsh(argv[2], &a) && !parse_u32_zsh(argv[3], &b) &&
+	    !parse_u32_zsh(argv[4], &c)) {
+		d = 1;
+		if (argc == 6 && parse_u32_zsh(argv[5], &d))
+			goto invalid;
+		return command_watch_zsh(&runtime->options, argv[1], a, b, d);
+	}
+	if (!strcmp(argv[0], "batch-set") && argc >= 4 &&
+	    !parse_u32_zsh(argv[2], &a))
+		return command_batch_set_zsh(&runtime->options, argv[1], a,
+					     argc - 3, &argv[3]);
+
+invalid:
+	errno = EINVAL;
+	return -1;
+}
+
+static int tokenize_zsh(char *line, char **tokens, int max_tokens)
+{
+	char *save = NULL;
+	char *token;
+	int count = 0;
+
+	for (token = strtok_r(line, " \t\r\n", &save); token;
+	     token = strtok_r(NULL, " \t\r\n", &save)) {
+		if (token[0] == '#')
+			break;
+		if (count == max_tokens) {
+			errno = E2BIG;
+			return -1;
+		}
+		tokens[count++] = token;
+	}
+	return count;
+}
+
+static int run_stream_zsh(struct runtime_zsh *runtime, FILE *stream,
+			  const char *source, bool interactive)
+{
+	char line[1024];
+	unsigned int line_number = 0;
+	int overall = 0;
+
+	while (true) {
+		char *tokens[GPIOCTL_CLI_MAX_TOKENS];
+		int token_count, ret;
+
+		if (interactive) {
+			fputs("gpioctl_zsh> ", stdout);
+			fflush(stdout);
+		}
+		if (!fgets(line, sizeof(line), stream))
+			break;
+		line_number++;
+		if (!strchr(line, '\n') && !feof(stream)) {
+			fprintf(stderr, "%s:%u: line too long\n", source, line_number);
+			overall = -1;
+			if (runtime->options.strict)
+				break;
+			continue;
+		}
+		token_count = tokenize_zsh(line, tokens, GPIOCTL_CLI_MAX_TOKENS);
+		if (token_count < 0) {
+			overall = -1;
+			if (runtime->options.strict)
+				break;
+			continue;
+		}
+		if (!token_count)
+			continue;
+		if (!strcmp(tokens[0], "exit") || !strcmp(tokens[0], "quit"))
+			break;
+		if (!strcmp(tokens[0], "help")) {
+			usage_zsh(stdout);
+			continue;
+		}
+		ret = execute_tokens_zsh(runtime, token_count, tokens);
+		if (ret) {
+			fprintf(stderr, "%s:%u: command failed: %s\n", source,
+				line_number, strerror(errno));
+			overall = -1;
+			if (runtime->options.strict)
+				break;
+		}
+	}
+	return overall;
+}
+
+static int self_test_zsh(void)
+{
+	struct target_zsh target;
+	struct cli_options_zsh options = {
+		.config_path = !access("config/phytium-pi-v1.conf", R_OK) ?
+			"config/phytium-pi-v1.conf" : "../config/phytium-pi-v1.conf",
+	};
+	uint32_t value;
+
+	if (parse_u32_zsh("4294967295", &value) || value != UINT32_MAX)
+		return 1;
+	if (!parse_u32_zsh("4294967296", &value))
+		return 1;
+	if (parse_generic_gpio_name_zsh("GPIO4_7", &target) ||
+	    strcmp(target.device, "/dev/gpio4_zsh") || target.offset != 7U)
+		return 1;
+	if (resolve_target_zsh(&options, "GPIO1_11", &target) ||
+	    strcmp(target.pad, "BA49") || target.offset != 11U)
+		return 1;
+	puts("gpioctl_zsh self-test: PASS");
+	return 0;
+}
+
+int main(int argc, char **argv)
+{
+	struct runtime_zsh runtime = {0};
+	int index = 1;
+	int ret;
+
+	if (argc == 2 && !strcmp(argv[1], "--self-test"))
+		return self_test_zsh();
+	while (index < argc && !strncmp(argv[index], "--", 2)) {
+		if (!strcmp(argv[index], "--json"))
+			runtime.options.json = true;
+		else if (!strcmp(argv[index], "--strict"))
+			runtime.options.strict = true;
+		else if (!strcmp(argv[index], "--dry-run"))
+			runtime.options.dry_run = true;
+		else if (!strcmp(argv[index], "--config") && index + 1 < argc)
+			runtime.options.config_path = argv[++index];
+		else {
+			usage_zsh(stderr);
+			return 2;
+		}
+		index++;
+	}
+	if (index >= argc) {
+		usage_zsh(stderr);
+		return 2;
+	}
+	if (!strcmp(argv[index], "run") && index + 1 == argc - 1) {
+		FILE *stream = !strcmp(argv[index + 1], "-") ? stdin :
+			fopen(argv[index + 1], "r");
+
+		if (!stream) {
+			perror(argv[index + 1]);
+			return 1;
+		}
+		ret = run_stream_zsh(&runtime, stream, argv[index + 1], false);
+		if (stream != stdin)
+			fclose(stream);
+	} else if (!strcmp(argv[index], "shell") && index + 1 == argc) {
+		ret = run_stream_zsh(&runtime, stdin, "stdin", true);
+	} else {
+		ret = execute_tokens_zsh(&runtime, argc - index, &argv[index]);
+		if (ret)
+			print_error_zsh(&runtime.options, "command", argv[index]);
+	}
+	cleanup_runtime_zsh(&runtime);
+	return ret ? 1 : 0;
+}
