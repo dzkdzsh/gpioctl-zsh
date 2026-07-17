@@ -144,6 +144,41 @@ static int phytium_bias_bits_zsh(u32 bias, u32 *bits)
 	}
 }
 
+static int phytium_iopad_get_config_zsh(
+	void *priv, const char *hardware_key, unsigned int offset,
+	struct gpioctl_zsh_iopad_config *config)
+{
+	struct phytium_iopad_zsh *iopad = priv;
+	const struct phytium_pad_zsh *pad;
+	unsigned long irq_flags;
+	u32 value, bias_bits;
+	int controller;
+
+	controller = phytium_controller_index_zsh(hardware_key);
+	if (controller < 0 || offset >= 16)
+		return -EOPNOTSUPP;
+	pad = &phytium_pads_zsh[controller][offset];
+	spin_lock_irqsave(&iopad->lock, irq_flags);
+	value = readl(iopad->base + pad->register_offset);
+	spin_unlock_irqrestore(&iopad->lock, irq_flags);
+
+	bias_bits = value & PHYTIUM_IOPAD_BIAS_MASK_ZSH;
+	if (!bias_bits)
+		config->bias = GPIOCTL_ZSH_BIAS_DISABLE;
+	else if (bias_bits == BIT(8))
+		config->bias = GPIOCTL_ZSH_BIAS_PULL_DOWN;
+	else if (bias_bits == BIT(9))
+		config->bias = GPIOCTL_ZSH_BIAS_PULL_UP;
+	else
+		return -EIO;
+	config->drive_level = (value & PHYTIUM_IOPAD_DRIVE_MASK_ZSH) >> 4;
+	config->mux_state = (value & PHYTIUM_IOPAD_FUNC_MASK_ZSH) ==
+		pad->gpio_function ? GPIOCTL_ZSH_MUX_GPIO : GPIOCTL_ZSH_MUX_OTHER;
+	config->flags = GPIOCTL_ZSH_IOPAD_APPLY_BIAS |
+		GPIOCTL_ZSH_IOPAD_APPLY_DRIVE | GPIOCTL_ZSH_IOPAD_APPLY_MUX;
+	return 0;
+}
+
 static int phytium_iopad_configure_zsh(
 	void *priv, const char *hardware_key, unsigned int offset,
 	const struct gpioctl_zsh_iopad_config *config)
@@ -207,6 +242,7 @@ static const struct gpioctl_iopad_ops_zsh phytium_iopad_ops_zsh = {
 	.struct_size = sizeof(phytium_iopad_ops_zsh),
 	.supports = phytium_iopad_supports_zsh,
 	.get_caps = phytium_iopad_get_caps_zsh,
+	.get_config = phytium_iopad_get_config_zsh,
 	.configure = phytium_iopad_configure_zsh,
 };
 
@@ -267,4 +303,3 @@ MODULE_AUTHOR("zsh");
 MODULE_DESCRIPTION("Device-tree-backed Phytium IOPAD provider for gpioctl_zsh");
 MODULE_VERSION("0.1.0");
 MODULE_SOFTDEP("pre: gpioctl_core_zsh");
-

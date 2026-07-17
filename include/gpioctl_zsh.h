@@ -50,6 +50,9 @@ int gpioctl_zsh_iopad_config(struct gpioctl_zsh_handle *handle,
 			     uint32_t offset, uint32_t bias,
 			     uint32_t drive_level, uint32_t mux_state,
 			     uint32_t flags);
+int gpioctl_zsh_iopad_get_config(struct gpioctl_zsh_handle *handle,
+				 uint32_t offset,
+				 struct gpioctl_zsh_iopad_config *config);
 ssize_t gpioctl_zsh_read_events(struct gpioctl_zsh_handle *handle,
 				struct gpioctl_zsh_event *events,
 				size_t event_count);

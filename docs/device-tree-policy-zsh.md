@@ -55,6 +55,9 @@ core 首先调用通用 GPIO 后端的 `set_bias`。只有它明确返回 `ENOTS
 真实错误直接返回，不能被 fallback 掩盖。飞腾板的 gpiolib 驱动不提供通用
 pinconf bias，因此实际由受 MMIO spinlock、读回校验和失败回滚保护的飞腾 IOPAD
 provider 完成。直接修改 mux/drive 的 IOPAD ioctl 仍要求 `CAP_SYS_RAWIO`。
+只读 IOPAD 查询在同一 MMIO spinlock 下采样，并只输出 bias、0..15 驱动档位和
+`gpio/other` 复用分类；它可用于独立核对配置读回，但不会暴露裸 `funcN` 或
+寄存器内容。
 
 监控节点 `/sys/class/gpioctl_zsh/gpioN_zsh/` 提供 `allowlisted_lines`、
 `output_lines` 和 `reserved_lines` 计数，可用于确认覆盖层是否真正绑定到控制器。

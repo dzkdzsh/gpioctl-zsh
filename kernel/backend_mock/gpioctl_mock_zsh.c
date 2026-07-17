@@ -17,6 +17,8 @@ struct gpioctl_mock_line_zsh {
 	bool output;
 	int value;
 	u32 bias;
+	u32 drive_level;
+	u32 mux_state;
 	unsigned int irq;
 };
 
@@ -233,6 +235,63 @@ static int gpioctl_mock_to_irq_zsh(void *priv, void *line_priv)
 	return line->irq;
 }
 
+static int gpioctl_mock_get_iopad_caps_zsh(
+	void *priv, unsigned int offset, struct gpioctl_zsh_line_caps *caps)
+{
+	if (offset >= GPIOCTL_MOCK_LINES_ZSH)
+		return -EINVAL;
+	caps->capabilities |= GPIOCTL_ZSH_CAP_IOPAD |
+		GPIOCTL_ZSH_CAP_BIAS_DISABLE | GPIOCTL_ZSH_CAP_BIAS_PULL_UP |
+		GPIOCTL_ZSH_CAP_BIAS_PULL_DOWN;
+	caps->drive_level_min = 0;
+	caps->drive_level_max = 15;
+	return 0;
+}
+
+static int gpioctl_mock_get_iopad_zsh(
+	void *priv, unsigned int offset, struct gpioctl_zsh_iopad_config *config)
+{
+	struct gpioctl_mock_zsh *mock = priv;
+	struct gpioctl_mock_line_zsh *line;
+	int ret;
+
+	if (offset >= GPIOCTL_MOCK_LINES_ZSH)
+		return -EINVAL;
+	line = &mock->lines[offset];
+	mutex_lock(&mock->lock);
+	ret = gpioctl_mock_maybe_fail_zsh(line);
+	if (!ret) {
+		config->flags = GPIOCTL_ZSH_IOPAD_APPLY_BIAS |
+			GPIOCTL_ZSH_IOPAD_APPLY_DRIVE |
+			GPIOCTL_ZSH_IOPAD_APPLY_MUX;
+		config->bias = line->bias;
+		config->drive_level = line->drive_level;
+		config->mux_state = line->mux_state;
+	}
+	mutex_unlock(&mock->lock);
+	return ret;
+}
+
+static int gpioctl_mock_set_iopad_zsh(
+	void *priv, void *line_priv,
+	const struct gpioctl_zsh_iopad_config *config)
+{
+	struct gpioctl_mock_zsh *mock = priv;
+	struct gpioctl_mock_line_zsh *line = line_priv;
+	int ret;
+
+	mutex_lock(&mock->lock);
+	ret = gpioctl_mock_maybe_fail_zsh(line);
+	if (!ret && (config->flags & GPIOCTL_ZSH_IOPAD_APPLY_BIAS))
+		line->bias = config->bias;
+	if (!ret && (config->flags & GPIOCTL_ZSH_IOPAD_APPLY_DRIVE))
+		line->drive_level = config->drive_level;
+	if (!ret && (config->flags & GPIOCTL_ZSH_IOPAD_APPLY_MUX))
+		line->mux_state = config->mux_state;
+	mutex_unlock(&mock->lock);
+	return ret;
+}
+
 static const struct gpioctl_hal_ops_zsh gpioctl_mock_ops_zsh = {
 	.abi_version = GPIOCTL_ZSH_HAL_ABI_VERSION,
 	.struct_size = sizeof(gpioctl_mock_ops_zsh),
@@ -245,6 +304,9 @@ static const struct gpioctl_hal_ops_zsh gpioctl_mock_ops_zsh = {
 	.set_bias = gpioctl_mock_set_bias_zsh,
 	.set_debounce = gpioctl_mock_set_debounce_zsh,
 	.to_irq = gpioctl_mock_to_irq_zsh,
+	.get_iopad_caps = gpioctl_mock_get_iopad_caps_zsh,
+	.get_iopad = gpioctl_mock_get_iopad_zsh,
+	.set_iopad = gpioctl_mock_set_iopad_zsh,
 };
 
 static int __init gpioctl_mock_init_zsh(void)
@@ -263,7 +325,8 @@ static int __init gpioctl_mock_init_zsh(void)
 			GPIOCTL_ZSH_CAP_EDGE_RISING |
 			GPIOCTL_ZSH_CAP_EDGE_FALLING |
 			GPIOCTL_ZSH_CAP_DEBOUNCE |
-			GPIOCTL_ZSH_CAP_BATCH,
+			GPIOCTL_ZSH_CAP_BATCH |
+			GPIOCTL_ZSH_CAP_IOPAD,
 		.ops = &gpioctl_mock_ops_zsh,
 		.line_policies = gpioctl_mock_zsh.policies,
 		.priv = &gpioctl_mock_zsh,
@@ -280,6 +343,8 @@ static int __init gpioctl_mock_init_zsh(void)
 		return -ENOMEM;
 	for (i = 0; i < GPIOCTL_MOCK_LINES_ZSH; i++) {
 		gpioctl_mock_zsh.lines[i].offset = i;
+		gpioctl_mock_zsh.lines[i].bias = GPIOCTL_ZSH_BIAS_DISABLE;
+		gpioctl_mock_zsh.lines[i].mux_state = GPIOCTL_ZSH_MUX_GPIO;
 		gpioctl_mock_zsh.policies[i].safe_direction =
 			GPIOCTL_ZSH_DIRECTION_INPUT;
 		gpioctl_mock_zsh.policies[i].safe_bias =

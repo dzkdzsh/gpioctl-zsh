@@ -59,6 +59,8 @@ enum gpioctl_zsh_edge {
 enum gpioctl_zsh_mux_state {
 	GPIOCTL_ZSH_MUX_AS_IS = 0,
 	GPIOCTL_ZSH_MUX_GPIO = 1,
+	/* Read-only result: the pad is muxed to a non-GPIO function. */
+	GPIOCTL_ZSH_MUX_OTHER = 2,
 };
 
 enum gpioctl_zsh_batch_opcode {
@@ -227,6 +229,8 @@ struct gpioctl_zsh_stats {
 	_IOW(GPIOCTL_ZSH_IOC_MAGIC, 0x30, struct gpioctl_zsh_event_config)
 #define GPIOCTL_ZSH_IOC_IOPAD_CONFIG \
 	_IOW(GPIOCTL_ZSH_IOC_MAGIC, 0x40, struct gpioctl_zsh_iopad_config)
+#define GPIOCTL_ZSH_IOC_IOPAD_GET_CONFIG \
+	_IOWR(GPIOCTL_ZSH_IOC_MAGIC, 0x41, struct gpioctl_zsh_iopad_config)
 #define GPIOCTL_ZSH_IOC_GET_STATS \
 	_IOR(GPIOCTL_ZSH_IOC_MAGIC, 0x50, struct gpioctl_zsh_stats)
 

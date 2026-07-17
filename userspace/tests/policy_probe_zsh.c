@@ -36,9 +36,27 @@ static void expect_policy_zsh(const struct gpioctl_zsh_line_policy *policy,
 	}
 }
 
+static void expect_iopad_zsh(const struct gpioctl_zsh_iopad_config *config,
+			      uint32_t bias, uint32_t drive,
+			      uint32_t mux, const char *operation)
+{
+	const uint32_t all_flags = GPIOCTL_ZSH_IOPAD_APPLY_BIAS |
+		GPIOCTL_ZSH_IOPAD_APPLY_DRIVE | GPIOCTL_ZSH_IOPAD_APPLY_MUX;
+
+	if (config->flags != all_flags || config->bias != bias ||
+	    config->drive_level != drive || config->mux_state != mux) {
+		fprintf(stderr,
+			"%s: flags=0x%08x bias=%u drive=%u mux=%u\n",
+			operation, config->flags, config->bias,
+			config->drive_level, config->mux_state);
+		exit(EXIT_FAILURE);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	struct gpioctl_zsh_handle *handle;
+	struct gpioctl_zsh_iopad_config iopad;
 	struct gpioctl_zsh_line_policy policy;
 	uint32_t offset;
 
@@ -61,9 +79,23 @@ int main(int argc, char **argv)
 	expect_policy_zsh(&policy, GPIOCTL_ZSH_POLICY_RESERVED, "policy 15");
 
 	offset = 10;
+	if (gpioctl_zsh_iopad_get_config(handle, offset, &iopad))
+		fail_zsh("initial IOPAD query");
+	expect_iopad_zsh(&iopad, GPIOCTL_ZSH_BIAS_DISABLE, 0,
+			  GPIOCTL_ZSH_MUX_GPIO, "initial IOPAD state");
 	if (gpioctl_zsh_lease(handle, &offset, 1,
 			      GPIOCTL_ZSH_LEASE_INPUT_ONLY))
 		fail_zsh("input-only lease");
+	if (gpioctl_zsh_iopad_config(handle, offset, GPIOCTL_ZSH_BIAS_PULL_UP,
+				     7, GPIOCTL_ZSH_MUX_GPIO,
+				     GPIOCTL_ZSH_IOPAD_APPLY_BIAS |
+				     GPIOCTL_ZSH_IOPAD_APPLY_DRIVE |
+				     GPIOCTL_ZSH_IOPAD_APPLY_MUX))
+		fail_zsh("IOPAD configure");
+	if (gpioctl_zsh_iopad_get_config(handle, offset, &iopad))
+		fail_zsh("configured IOPAD query");
+	expect_iopad_zsh(&iopad, GPIOCTL_ZSH_BIAS_PULL_UP, 7,
+			  GPIOCTL_ZSH_MUX_GPIO, "configured IOPAD state");
 	expect_errno_zsh(gpioctl_zsh_config(handle, offset,
 					    GPIOCTL_ZSH_DIRECTION_OUTPUT, 1,
 					    GPIOCTL_ZSH_BIAS_AS_IS, 0, 0),
@@ -73,6 +105,10 @@ int main(int argc, char **argv)
 		fail_zsh("input-only configure");
 	if (gpioctl_zsh_release(handle, &offset, 1))
 		fail_zsh("input-only release");
+	if (gpioctl_zsh_iopad_get_config(handle, offset, &iopad))
+		fail_zsh("released IOPAD query");
+	expect_iopad_zsh(&iopad, GPIOCTL_ZSH_BIAS_DISABLE, 7,
+			  GPIOCTL_ZSH_MUX_GPIO, "released IOPAD state");
 
 	offset = 14;
 	if (gpioctl_zsh_lease(handle, &offset, 1, 0))

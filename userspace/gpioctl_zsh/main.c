@@ -75,6 +75,7 @@ static void usage_zsh(FILE *stream)
 		"  commit [HOLD_MS]\n"
 		"  abort\n"
 		"  watch TARGET rising|falling|both TIMEOUT_MS [COUNT] [DEBOUNCE_US]\n"
+		"  iopad-get TARGET\n"
 		"  iopad TARGET [mux=gpio] [bias=none|up|down] [drive=0..15]\n"
 		"  stats TARGET|DEVICE\n"
 		"  acquire TARGET in|out [INITIAL_VALUE]\n"
@@ -600,11 +601,11 @@ static int command_iopad_zsh(const struct cli_options_zsh *options,
 		errno = EINVAL;
 		goto out;
 	}
-	config.offset = target.offset;
+		config.offset = target.offset;
 	if (!options->dry_run) {
 		offset = target.offset;
 		handle = gpioctl_zsh_open(target.device);
-	if (!handle || gpioctl_zsh_lease(handle, &offset, 1,
+		if (!handle || gpioctl_zsh_lease(handle, &offset, 1,
 					 GPIOCTL_ZSH_LEASE_INPUT_ONLY) ||
 		    gpioctl_zsh_iopad_config(handle, config.offset, config.bias,
 					    config.drive_level, config.mux_state,
@@ -626,6 +627,68 @@ static int command_iopad_zsh(const struct cli_options_zsh *options,
 out:
 	if (ret)
 		print_error_zsh(options, "iopad", name);
+	gpioctl_zsh_close(handle);
+	return ret;
+}
+
+static const char *iopad_bias_name_zsh(uint32_t bias)
+{
+	switch (bias) {
+	case GPIOCTL_ZSH_BIAS_DISABLE:
+		return "none";
+	case GPIOCTL_ZSH_BIAS_PULL_UP:
+		return "up";
+	case GPIOCTL_ZSH_BIAS_PULL_DOWN:
+		return "down";
+	default:
+		return "unknown";
+	}
+}
+
+static const char *iopad_mux_name_zsh(uint32_t mux_state)
+{
+	switch (mux_state) {
+	case GPIOCTL_ZSH_MUX_GPIO:
+		return "gpio";
+	case GPIOCTL_ZSH_MUX_OTHER:
+		return "other";
+	default:
+		return "unknown";
+	}
+}
+
+static int command_iopad_get_zsh(const struct cli_options_zsh *options,
+				 const char *name)
+{
+	struct gpioctl_zsh_iopad_config config;
+	struct gpioctl_zsh_handle *handle = NULL;
+	struct target_zsh target;
+	int ret = -1;
+
+	if (resolve_target_zsh(options, name, &target))
+		goto out;
+	handle = gpioctl_zsh_open(target.device);
+	if (!handle || gpioctl_zsh_iopad_get_config(handle, target.offset,
+						    &config))
+		goto out;
+	if (options->json)
+		printf("{\"ok\":true,\"operation\":\"iopad-get\","
+		       "\"target\":\"%s\",\"flags\":%" PRIu32
+		       ",\"bias\":%" PRIu32 ",\"bias_name\":\"%s\","
+		       "\"drive\":%" PRIu32 ",\"mux\":%" PRIu32
+		       ",\"mux_name\":\"%s\"}\n",
+		       name, config.flags, config.bias,
+		       iopad_bias_name_zsh(config.bias), config.drive_level,
+		       config.mux_state, iopad_mux_name_zsh(config.mux_state));
+	else
+		printf("iopad target=%s flags=0x%08" PRIx32
+		       " bias=%s drive=%" PRIu32 " mux=%s\n",
+		       name, config.flags, iopad_bias_name_zsh(config.bias),
+		       config.drive_level, iopad_mux_name_zsh(config.mux_state));
+	ret = 0;
+out:
+	if (ret)
+		print_error_zsh(options, "iopad-get", name);
 	gpioctl_zsh_close(handle);
 	return ret;
 }
@@ -1118,6 +1181,8 @@ static int execute_tokens_zsh(struct runtime_zsh *runtime, int argc, char **argv
 			goto invalid;
 		return command_watch_zsh(&runtime->options, argv[1], a, b, c, d);
 	}
+	if (!strcmp(argv[0], "iopad-get") && argc == 2)
+		return command_iopad_get_zsh(&runtime->options, argv[1]);
 	if (!strcmp(argv[0], "iopad") && argc >= 3)
 		return command_iopad_zsh(&runtime->options, argv[1], argc - 2,
 					  &argv[2]);

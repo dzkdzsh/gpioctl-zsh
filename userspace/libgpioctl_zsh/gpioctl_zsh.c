@@ -270,6 +270,21 @@ int gpioctl_zsh_iopad_config(struct gpioctl_zsh_handle *handle,
 	return ioctl(handle->fd, GPIOCTL_ZSH_IOC_IOPAD_CONFIG, &config);
 }
 
+int gpioctl_zsh_iopad_get_config(struct gpioctl_zsh_handle *handle,
+				 uint32_t offset,
+				 struct gpioctl_zsh_iopad_config *config)
+{
+	if (!handle || !config) {
+		errno = EINVAL;
+		return -1;
+	}
+	memset(config, 0, sizeof(*config));
+	config->abi_version = GPIOCTL_ZSH_ABI_VERSION;
+	config->struct_size = (uint32_t)sizeof(*config);
+	config->offset = offset;
+	return ioctl(handle->fd, GPIOCTL_ZSH_IOC_IOPAD_GET_CONFIG, config);
+}
+
 ssize_t gpioctl_zsh_read_events(struct gpioctl_zsh_handle *handle,
 				struct gpioctl_zsh_event *events,
 				size_t event_count)

@@ -6,7 +6,7 @@
 
 #include "uapi/gpioctl_zsh.h"
 
-#define GPIOCTL_ZSH_HAL_ABI_VERSION 2U
+#define GPIOCTL_ZSH_HAL_ABI_VERSION 3U
 #define GPIOCTL_ZSH_BACKEND_NAME_MAX 31U
 
 struct gpioctl_controller_zsh;
@@ -34,6 +34,8 @@ struct gpioctl_hal_ops_zsh {
 	int (*to_irq)(void *priv, void *line_priv);
 	int (*get_iopad_caps)(void *priv, unsigned int offset,
 			      struct gpioctl_zsh_line_caps *caps);
+	int (*get_iopad)(void *priv, unsigned int offset,
+			 struct gpioctl_zsh_iopad_config *config);
 	int (*set_iopad)(void *priv, void *line_priv,
 			 const struct gpioctl_zsh_iopad_config *config);
 };
@@ -58,6 +60,9 @@ struct gpioctl_iopad_ops_zsh {
 			 unsigned int offset);
 	int (*get_caps)(void *priv, const char *hardware_key,
 			unsigned int offset, struct gpioctl_zsh_line_caps *caps);
+	int (*get_config)(void *priv, const char *hardware_key,
+			  unsigned int offset,
+			  struct gpioctl_zsh_iopad_config *config);
 	int (*configure)(void *priv, const char *hardware_key,
 			 unsigned int offset,
 			 const struct gpioctl_zsh_iopad_config *config);

@@ -168,6 +168,30 @@ static void gpioctl_put_iopad_zsh(struct gpioctl_iopad_provider_zsh *provider)
 	}
 }
 
+static int gpioctl_read_iopad_zsh(struct gpioctl_controller_zsh *controller,
+				  unsigned int offset,
+				  struct gpioctl_zsh_iopad_config *config)
+{
+	struct gpioctl_iopad_provider_zsh *provider;
+	int ret;
+
+	if (controller->backend.ops->get_iopad)
+		return controller->backend.ops->get_iopad(
+			controller->backend.priv, offset, config);
+	provider = gpioctl_get_iopad_zsh();
+	if (!provider)
+		return -EOPNOTSUPP;
+	if (!provider->desc.ops->supports(provider->desc.priv,
+			controller->backend.hardware_key, offset)) {
+		gpioctl_put_iopad_zsh(provider);
+		return -EOPNOTSUPP;
+	}
+	ret = provider->desc.ops->get_config(provider->desc.priv,
+		controller->backend.hardware_key, offset, config);
+	gpioctl_put_iopad_zsh(provider);
+	return ret;
+}
+
 static int gpioctl_set_bias_zsh(struct gpioctl_controller_zsh *controller,
 				struct gpioctl_line_state_zsh *line,
 				enum gpioctl_zsh_bias bias)
@@ -1021,8 +1045,15 @@ static int gpioctl_iopad_config_zsh(struct gpioctl_session_zsh *session,
 	    config.flags & ~(GPIOCTL_ZSH_IOPAD_APPLY_BIAS |
 			     GPIOCTL_ZSH_IOPAD_APPLY_DRIVE |
 			     GPIOCTL_ZSH_IOPAD_APPLY_MUX) ||
-	    !config.flags || config.bias > GPIOCTL_ZSH_BIAS_PULL_DOWN ||
-	    config.mux_state > GPIOCTL_ZSH_MUX_GPIO)
+	    !config.flags ||
+	    ((config.flags & GPIOCTL_ZSH_IOPAD_APPLY_BIAS) ?
+		(config.bias < GPIOCTL_ZSH_BIAS_DISABLE ||
+		 config.bias > GPIOCTL_ZSH_BIAS_PULL_DOWN) : config.bias != 0) ||
+	    (!(config.flags & GPIOCTL_ZSH_IOPAD_APPLY_DRIVE) &&
+		config.drive_level != 0) ||
+	    ((config.flags & GPIOCTL_ZSH_IOPAD_APPLY_MUX) ?
+		config.mux_state != GPIOCTL_ZSH_MUX_GPIO :
+		config.mux_state != GPIOCTL_ZSH_MUX_AS_IS))
 		return -EINVAL;
 	if (!controller->backend.ops->set_iopad) {
 		provider = gpioctl_get_iopad_zsh();
@@ -1111,6 +1142,7 @@ static long gpioctl_ioctl_zsh(struct file *file, unsigned int command,
 		caps.capabilities = controller->backend.capabilities;
 		caps.drive_level_min = 0;
 		caps.drive_level_max = 0;
+		ret = 0;
 		if (controller->backend.ops->get_iopad_caps)
 			ret = controller->backend.ops->get_iopad_caps(
 				controller->backend.priv, caps.offset, &caps);
@@ -1177,6 +1209,30 @@ static long gpioctl_ioctl_zsh(struct file *file, unsigned int command,
 	case GPIOCTL_ZSH_IOC_IOPAD_CONFIG:
 		ret = gpioctl_iopad_config_zsh(session, arg);
 		break;
+	case GPIOCTL_ZSH_IOC_IOPAD_GET_CONFIG: {
+		struct gpioctl_zsh_iopad_config config;
+
+		if (copy_from_user(&config, arg, sizeof(config))) {
+			ret = -EFAULT;
+			break;
+		}
+		ret = gpioctl_validate_header_zsh(config.abi_version,
+						  config.struct_size,
+						  sizeof(config));
+		if (ret || config.offset >= controller->backend.line_count ||
+		    config.bias || config.drive_level || config.mux_state ||
+		    config.flags ||
+		    !gpioctl_reserved_zero_zsh(config.reserved,
+						ARRAY_SIZE(config.reserved))) {
+			if (!ret)
+				ret = -EINVAL;
+			break;
+		}
+		ret = gpioctl_read_iopad_zsh(controller, config.offset, &config);
+		if (!ret && copy_to_user(arg, &config, sizeof(config)))
+			ret = -EFAULT;
+		break;
+	}
 	case GPIOCTL_ZSH_IOC_GET_STATS: {
 		struct gpioctl_zsh_stats stats = {
 			.abi_version = GPIOCTL_ZSH_ABI_VERSION,
@@ -1495,6 +1551,7 @@ int gpioctl_register_iopad_provider_zsh(
 	    desc->ops->abi_version != GPIOCTL_ZSH_HAL_ABI_VERSION ||
 	    desc->ops->struct_size != sizeof(*desc->ops) ||
 	    !desc->ops->supports || !desc->ops->get_caps ||
+	    !desc->ops->get_config ||
 	    !desc->ops->configure)
 		return -EINVAL;
 	provider = kzalloc(sizeof(*provider), GFP_KERNEL);

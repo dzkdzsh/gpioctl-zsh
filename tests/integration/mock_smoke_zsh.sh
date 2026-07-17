@@ -51,6 +51,13 @@ if runuser -u zsh -- "$cli" --config "$config" get /dev/gpio0_zsh:14 \
 	echo "unprivileged non-allowlisted lease unexpectedly succeeded" >&2
 	exit 1
 fi
+"$cli" --json --config "$config" iopad-get /dev/gpio0_zsh:10 |
+	grep -q '"bias_name":"none".*"drive":7.*"mux_name":"gpio"'
+if runuser -u zsh -- "$cli" --config "$config" \
+	iopad /dev/gpio0_zsh:10 drive=1 >/dev/null 2>&1; then
+	echo "unprivileged IOPAD configuration unexpectedly succeeded" >&2
+	exit 1
+fi
 printf '%s\n' \
 	'acquire /dev/gpio0_zsh:1 out 0' \
 	'value /dev/gpio0_zsh:1 1' \

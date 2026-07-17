@@ -21,6 +21,8 @@ int main(void)
 	       sizeof(struct gpioctl_zsh_batch));
 	assert(_IOC_SIZE(GPIOCTL_ZSH_IOC_GET_LINE_POLICY) ==
 	       sizeof(struct gpioctl_zsh_line_policy));
+	assert(_IOC_SIZE(GPIOCTL_ZSH_IOC_IOPAD_GET_CONFIG) ==
+	       sizeof(struct gpioctl_zsh_iopad_config));
 	puts("uapi_layout_zsh: PASS");
 	return 0;
 }
