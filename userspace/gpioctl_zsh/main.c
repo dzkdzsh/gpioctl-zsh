@@ -44,9 +44,16 @@ struct held_line_zsh {
 	struct gpioctl_zsh_handle *handle;
 };
 
+struct transaction_zsh {
+	bool active;
+	char device[GPIOCTL_CLI_MAX_PATH];
+	struct gpioctl_zsh_batch batch;
+};
+
 struct runtime_zsh {
 	struct cli_options_zsh options;
 	struct held_line_zsh held[GPIOCTL_CLI_MAX_HELD];
+	struct transaction_zsh transaction;
 };
 
 static void usage_zsh(FILE *stream)
@@ -63,6 +70,10 @@ static void usage_zsh(FILE *stream)
 		"  blink TARGET COUNT ON_MS OFF_MS\n"
 		"  pair-blink TARGET_A TARGET_B COUNT INTERVAL_MS\n"
 		"  batch-set DEVICE HOLD_MS OFFSET=VALUE ...\n"
+		"  transaction DEVICE\n"
+		"  tx-line OFFSET in|out VALUE [active-low]\n"
+		"  commit [HOLD_MS]\n"
+		"  abort\n"
 		"  watch TARGET rising|falling|both TIMEOUT_MS [COUNT] [DEBOUNCE_US]\n"
 		"  iopad TARGET [mux=gpio] [bias=none|up|down] [drive=0..15]\n"
 		"  stats TARGET|DEVICE\n"
@@ -754,6 +765,7 @@ static void cleanup_runtime_zsh(struct runtime_zsh *runtime)
 			close_target_zsh(&runtime->options, runtime->held[i].handle);
 			memset(&runtime->held[i], 0, sizeof(runtime->held[i]));
 		}
+	memset(&runtime->transaction, 0, sizeof(runtime->transaction));
 }
 
 static int parse_edge_zsh(const char *text, uint32_t *edge)
@@ -904,6 +916,124 @@ out:
 	return ret;
 }
 
+static int command_transaction_begin_zsh(struct runtime_zsh *runtime,
+					 const char *device)
+{
+	struct transaction_zsh *transaction = &runtime->transaction;
+
+	if (transaction->active || strncmp(device, "/dev/", 5) ||
+	    snprintf(transaction->device, sizeof(transaction->device), "%s",
+		     device) >= (int)sizeof(transaction->device)) {
+		errno = transaction->active ? EBUSY : EINVAL;
+		return -1;
+	}
+	transaction->active = true;
+	transaction->batch.abi_version = GPIOCTL_ZSH_ABI_VERSION;
+	transaction->batch.struct_size = sizeof(transaction->batch);
+	transaction->batch.failed_index = -1;
+	if (runtime->options.json)
+		printf("{\"ok\":true,\"operation\":\"transaction\","
+		       "\"device\":\"%s\"}\n", device);
+	else
+		printf("transaction device=%s begun\n", device);
+	return 0;
+}
+
+static int command_transaction_line_zsh(struct runtime_zsh *runtime,
+					uint32_t offset, uint32_t direction,
+					uint32_t value, uint32_t flags)
+{
+	struct transaction_zsh *transaction = &runtime->transaction;
+	struct gpioctl_zsh_batch_op *operation;
+	uint32_t i;
+
+	if (!transaction->active || value > 1U ||
+	    direction > GPIOCTL_ZSH_DIRECTION_OUTPUT ||
+	    flags & ~GPIOCTL_ZSH_LINE_ACTIVE_LOW ||
+	    transaction->batch.count >= GPIOCTL_ZSH_MAX_BATCH_OPS) {
+		errno = EINVAL;
+		return -1;
+	}
+	for (i = 0; i < transaction->batch.count; i++)
+		if (transaction->batch.ops[i].offset == offset) {
+			errno = EEXIST;
+			return -1;
+		}
+	operation = &transaction->batch.ops[transaction->batch.count++];
+	operation->opcode = GPIOCTL_ZSH_BATCH_CONFIG;
+	operation->offset = offset;
+	operation->arg0 = direction;
+	operation->arg1 = value;
+	operation->flags = flags;
+	if (runtime->options.json)
+		printf("{\"ok\":true,\"operation\":\"tx-line\","
+		       "\"offset\":%" PRIu32 ",\"direction\":%" PRIu32 ","
+		       "\"value\":%" PRIu32 ",\"flags\":%" PRIu32 "}\n",
+		       offset, direction, value, flags);
+	else
+		printf("tx-line offset=%" PRIu32 " direction=%" PRIu32
+		       " value=%" PRIu32 " flags=0x%08" PRIx32 "\n",
+		       offset, direction, value, flags);
+	return 0;
+}
+
+static int command_transaction_commit_zsh(struct runtime_zsh *runtime,
+					  uint32_t hold_ms)
+{
+	struct transaction_zsh *transaction = &runtime->transaction;
+	struct gpioctl_zsh_handle *handle = NULL;
+	uint32_t offsets[GPIOCTL_ZSH_MAX_BATCH_OPS];
+	uint32_t count, i;
+	int ret = -1;
+
+	if (!transaction->active || !transaction->batch.count) {
+		errno = EINVAL;
+		return -1;
+	}
+	count = transaction->batch.count;
+	for (i = 0; i < count; i++)
+		offsets[i] = transaction->batch.ops[i].offset;
+	if (!runtime->options.dry_run) {
+		handle = gpioctl_zsh_open(transaction->device);
+		if (!handle || gpioctl_zsh_lease(handle, offsets, count, 0) ||
+		    gpioctl_zsh_batch(handle, &transaction->batch))
+			goto out;
+	}
+	if (runtime->options.json)
+		printf("{\"ok\":true,\"operation\":\"commit\","
+		       "\"device\":\"%s\",\"count\":%" PRIu32 ","
+		       "\"hold_ms\":%" PRIu32 ",\"dry_run\":%s}\n",
+		       transaction->device, count, hold_ms,
+		       runtime->options.dry_run ? "true" : "false");
+	else
+		printf("commit device=%s count=%" PRIu32 " hold_ms=%" PRIu32
+		       "%s\n", transaction->device, count, hold_ms,
+		       runtime->options.dry_run ? " dry-run" : "");
+	if (hold_ms)
+		(void)sleep_ms_zsh(hold_ms);
+	ret = 0;
+out:
+	if (ret)
+		print_error_zsh(&runtime->options, "commit", transaction->device);
+	gpioctl_zsh_close(handle);
+	memset(transaction, 0, sizeof(*transaction));
+	return ret;
+}
+
+static int command_transaction_abort_zsh(struct runtime_zsh *runtime)
+{
+	if (!runtime->transaction.active) {
+		errno = EINVAL;
+		return -1;
+	}
+	memset(&runtime->transaction, 0, sizeof(runtime->transaction));
+	if (runtime->options.json)
+		puts("{\"ok\":true,\"operation\":\"abort\"}");
+	else
+		puts("transaction aborted");
+	return 0;
+}
+
 static int execute_tokens_zsh(struct runtime_zsh *runtime, int argc, char **argv)
 {
 	uint32_t a, b, c, d;
@@ -984,6 +1114,33 @@ static int execute_tokens_zsh(struct runtime_zsh *runtime, int argc, char **argv
 	    !parse_u32_zsh(argv[2], &a))
 		return command_batch_set_zsh(&runtime->options, argv[1], a,
 					     argc - 3, &argv[3]);
+	if (!strcmp(argv[0], "transaction") && argc == 2)
+		return command_transaction_begin_zsh(runtime, argv[1]);
+	if (!strcmp(argv[0], "tx-line") && (argc == 4 || argc == 5) &&
+	    !parse_u32_zsh(argv[1], &a) && !parse_u32_zsh(argv[3], &b) &&
+	    b <= 1U) {
+		if (!strcmp(argv[2], "in"))
+			c = GPIOCTL_ZSH_DIRECTION_INPUT;
+		else if (!strcmp(argv[2], "out"))
+			c = GPIOCTL_ZSH_DIRECTION_OUTPUT;
+		else
+			goto invalid;
+		d = 0;
+		if (argc == 5) {
+			if (strcmp(argv[4], "active-low"))
+				goto invalid;
+			d = GPIOCTL_ZSH_LINE_ACTIVE_LOW;
+		}
+		return command_transaction_line_zsh(runtime, a, c, b, d);
+	}
+	if (!strcmp(argv[0], "commit") && (argc == 1 || argc == 2)) {
+		a = 0;
+		if (argc == 2 && parse_u32_zsh(argv[1], &a))
+			goto invalid;
+		return command_transaction_commit_zsh(runtime, a);
+	}
+	if (!strcmp(argv[0], "abort") && argc == 1)
+		return command_transaction_abort_zsh(runtime);
 
 invalid:
 	errno = EINVAL;
@@ -1064,6 +1221,23 @@ static int run_stream_zsh(struct runtime_zsh *runtime, FILE *stream,
 			overall = -1;
 			if (runtime->options.strict)
 				break;
+		}
+	}
+	if (runtime->transaction.active) {
+		memset(&runtime->transaction, 0, sizeof(runtime->transaction));
+		if (!overall) {
+			errno = ECANCELED;
+			if (runtime->options.json)
+				fprintf(stderr,
+					"{\"ok\":false,\"type\":\"transaction-abort\","
+					"\"source\":\"%s\",\"line\":%u,"
+					"\"errno\":%d,\"error\":\"%s\"}\n",
+					source, line_number, errno, strerror(errno));
+			else
+				fprintf(stderr,
+					"%s:%u: uncommitted transaction aborted: %s\n",
+					source, line_number, strerror(errno));
+			overall = -1;
 		}
 	}
 	return overall;

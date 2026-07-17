@@ -101,6 +101,20 @@ gpioctl_zsh --dry-run blink GPIO1_11 3 1000 1000
 脚本语法刻意保持确定和简单：空白分隔 token，`#` 开始注释；循环和复杂条件
 交给 Shell 或 Python。`--strict` 在首个失败处停止并返回非零退出码。
 
+同一控制器的多线配置可写成事务块：
+
+```text
+transaction /dev/gpio1_zsh
+tx-line 8 out 1 active-low
+tx-line 11 out 1
+commit 1000
+```
+
+`tx-line` 只在用户态收集并验证操作；`commit` 一次性租约全部 line，并通过一个
+批量 ioctl 提交。任何后端操作失败都由内核按快照逆序回滚，文件描述符关闭后
+释放全部租约。重复 offset、嵌套事务和空事务均失败；可用 `abort` 主动作废，
+脚本在未 `commit/abort` 时到达 EOF 或 `quit` 也会作废事务并返回非零退出码。
+
 ## 板级测试夹具
 
 `config/phytium-pi-v1.conf` 当前包含：

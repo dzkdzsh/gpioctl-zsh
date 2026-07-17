@@ -55,6 +55,55 @@ fi
 	grep -q 'active_leases=0'
 printf '%s\n' '-1' > /sys/module/gpioctl_mock_zsh/parameters/fail_offset
 
+transaction_output=$(
+	printf '%s\n' \
+		'transaction /dev/gpio0_zsh' \
+		'tx-line 7 out 1' \
+		'tx-line 8 out 0 active-low' \
+		'commit 0' |
+		"$cli" --json --strict --config "$config" run -
+)
+printf '%s\n' "$transaction_output" |
+	grep -q '"ok":true,"operation":"commit"'
+"$cli" --config "$config" stats /dev/gpio0_zsh |
+	grep -q 'active_leases=0'
+
+if printf '%s\n' \
+	'transaction /dev/gpio0_zsh' \
+	'tx-line 7 out 1' \
+	'tx-line 7 out 0' \
+	'commit 0' |
+	"$cli" --json --strict --config "$config" run - >/dev/null 2>&1; then
+	echo "duplicate transaction offset unexpectedly succeeded" >&2
+	exit 1
+fi
+"$cli" --config "$config" stats /dev/gpio0_zsh |
+	grep -q 'active_leases=0'
+
+printf '8\n' > /sys/module/gpioctl_mock_zsh/parameters/fail_offset
+if printf '%s\n' \
+	'transaction /dev/gpio0_zsh' \
+	'tx-line 7 out 0' \
+	'tx-line 8 out 1' \
+	'commit 0' |
+	"$cli" --json --strict --config "$config" run - >/dev/null 2>&1; then
+	echo "fault-injected transaction unexpectedly succeeded" >&2
+	exit 1
+fi
+printf '%s\n' '-1' > /sys/module/gpioctl_mock_zsh/parameters/fail_offset
+"$cli" --config "$config" stats /dev/gpio0_zsh |
+	grep -q 'active_leases=0'
+
+if printf '%s\n' \
+	'transaction /dev/gpio0_zsh' \
+	'tx-line 9 out 1' |
+	"$cli" --json --strict --config "$config" run - >/dev/null 2>&1; then
+	echo "uncommitted transaction unexpectedly succeeded" >&2
+	exit 1
+fi
+"$cli" --config "$config" stats /dev/gpio0_zsh |
+	grep -q 'active_leases=0'
+
 printf '%s\n' \
 	'acquire /dev/gpio0_zsh:3 out 0' \
 	'sleep 1500' \
