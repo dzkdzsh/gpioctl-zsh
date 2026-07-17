@@ -24,6 +24,10 @@
 
 #define GPIOCTL_ZSH_LINE_ACTIVE_LOW   (1U << 0)
 
+#define GPIOCTL_ZSH_IOPAD_APPLY_BIAS  (1U << 0)
+#define GPIOCTL_ZSH_IOPAD_APPLY_DRIVE (1U << 1)
+#define GPIOCTL_ZSH_IOPAD_APPLY_MUX   (1U << 2)
+
 #define GPIOCTL_ZSH_LEASE_INPUT_ONLY  (1U << 0)
 
 #define GPIOCTL_ZSH_EVENT_OVERFLOW    (1U << 0)
@@ -46,6 +50,11 @@ enum gpioctl_zsh_edge {
 	GPIOCTL_ZSH_EDGE_RISING = 1,
 	GPIOCTL_ZSH_EDGE_FALLING = 2,
 	GPIOCTL_ZSH_EDGE_BOTH = 3,
+};
+
+enum gpioctl_zsh_mux_state {
+	GPIOCTL_ZSH_MUX_AS_IS = 0,
+	GPIOCTL_ZSH_MUX_GPIO = 1,
 };
 
 enum gpioctl_zsh_batch_opcode {
@@ -205,4 +214,3 @@ struct gpioctl_zsh_stats {
 	_IOR(GPIOCTL_ZSH_IOC_MAGIC, 0x50, struct gpioctl_zsh_stats)
 
 #endif /* GPIOCTL_ZSH_UAPI_H */
-

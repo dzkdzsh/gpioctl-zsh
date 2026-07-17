@@ -64,6 +64,7 @@ static void usage_zsh(FILE *stream)
 		"  pair-blink TARGET_A TARGET_B COUNT INTERVAL_MS\n"
 		"  batch-set DEVICE HOLD_MS OFFSET=VALUE ...\n"
 		"  watch TARGET rising|falling|both TIMEOUT_MS [COUNT]\n"
+		"  iopad TARGET [mux=gpio] [bias=none|up|down] [drive=0..15]\n"
 		"  stats TARGET|DEVICE\n"
 		"  acquire TARGET in|out [INITIAL_VALUE]\n"
 		"  value TARGET [VALUE]\n"
@@ -516,6 +517,97 @@ out:
 	return ret;
 }
 
+static int parse_iopad_option_zsh(const char *option,
+				   struct gpioctl_zsh_iopad_config *config)
+{
+	uint32_t value;
+
+	if (!strncmp(option, "mux=", 4)) {
+		if (config->flags & GPIOCTL_ZSH_IOPAD_APPLY_MUX)
+			return -1;
+		if (strcmp(option + 4, "gpio"))
+			return -1;
+		config->mux_state = GPIOCTL_ZSH_MUX_GPIO;
+		config->flags |= GPIOCTL_ZSH_IOPAD_APPLY_MUX;
+		return 0;
+	}
+	if (!strncmp(option, "bias=", 5)) {
+		if (config->flags & GPIOCTL_ZSH_IOPAD_APPLY_BIAS)
+			return -1;
+		if (!strcmp(option + 5, "none"))
+			config->bias = GPIOCTL_ZSH_BIAS_DISABLE;
+		else if (!strcmp(option + 5, "up"))
+			config->bias = GPIOCTL_ZSH_BIAS_PULL_UP;
+		else if (!strcmp(option + 5, "down"))
+			config->bias = GPIOCTL_ZSH_BIAS_PULL_DOWN;
+		else
+			return -1;
+		config->flags |= GPIOCTL_ZSH_IOPAD_APPLY_BIAS;
+		return 0;
+	}
+	if (!strncmp(option, "drive=", 6)) {
+		if ((config->flags & GPIOCTL_ZSH_IOPAD_APPLY_DRIVE) ||
+		    parse_u32_zsh(option + 6, &value) || value > 15U)
+			return -1;
+		config->drive_level = value;
+		config->flags |= GPIOCTL_ZSH_IOPAD_APPLY_DRIVE;
+		return 0;
+	}
+	return -1;
+}
+
+static int command_iopad_zsh(const struct cli_options_zsh *options,
+			     const char *name, int option_count, char **option_values)
+{
+	struct gpioctl_zsh_iopad_config config = {
+		.abi_version = GPIOCTL_ZSH_ABI_VERSION,
+		.struct_size = sizeof(config),
+	};
+	struct gpioctl_zsh_handle *handle = NULL;
+	struct target_zsh target;
+	uint32_t offset;
+	int i, ret = -1;
+
+	if (resolve_target_zsh(options, name, &target))
+		goto out;
+	for (i = 0; i < option_count; i++)
+		if (parse_iopad_option_zsh(option_values[i], &config)) {
+			errno = EINVAL;
+			goto out;
+		}
+	if (!config.flags) {
+		errno = EINVAL;
+		goto out;
+	}
+	config.offset = target.offset;
+	if (!options->dry_run) {
+		offset = target.offset;
+		handle = gpioctl_zsh_open(target.device);
+		if (!handle || gpioctl_zsh_lease(handle, &offset, 1, 0) ||
+		    gpioctl_zsh_iopad_config(handle, config.offset, config.bias,
+					    config.drive_level, config.mux_state,
+					    config.flags))
+			goto out;
+	}
+	if (options->json)
+		printf("{\"ok\":true,\"target\":\"%s\",\"flags\":%" PRIu32
+		       ",\"bias\":%" PRIu32 ",\"drive\":%" PRIu32
+		       ",\"mux\":%" PRIu32 ",\"dry_run\":%s}\n",
+		       name, config.flags, config.bias, config.drive_level,
+		       config.mux_state, options->dry_run ? "true" : "false");
+	else
+		printf("iopad target=%s flags=0x%08" PRIx32
+		       " bias=%" PRIu32 " drive=%" PRIu32 " mux=%" PRIu32 "%s\n",
+		       name, config.flags, config.bias, config.drive_level,
+		       config.mux_state, options->dry_run ? " dry-run" : "");
+	ret = 0;
+out:
+	if (ret)
+		print_error_zsh(options, "iopad", name);
+	gpioctl_zsh_close(handle);
+	return ret;
+}
+
 static int command_stats_zsh(const struct cli_options_zsh *options,
 			     const char *name)
 {
@@ -858,14 +950,16 @@ static int execute_tokens_zsh(struct runtime_zsh *runtime, int argc, char **argv
 	}
 	if (!strcmp(argv[0], "release") && argc == 2)
 		return command_release_zsh(runtime, argv[1]);
-	if (!strcmp(argv[0], "watch") && (argc == 5 || argc == 6) &&
-	    !parse_edge_zsh(argv[2], &a) && !parse_u32_zsh(argv[3], &b) &&
-	    !parse_u32_zsh(argv[4], &c)) {
+	if (!strcmp(argv[0], "watch") && (argc == 4 || argc == 5) &&
+	    !parse_edge_zsh(argv[2], &a) && !parse_u32_zsh(argv[3], &b)) {
 		d = 1;
-		if (argc == 6 && parse_u32_zsh(argv[5], &d))
+		if (argc == 5 && parse_u32_zsh(argv[4], &d))
 			goto invalid;
 		return command_watch_zsh(&runtime->options, argv[1], a, b, d);
 	}
+	if (!strcmp(argv[0], "iopad") && argc >= 3)
+		return command_iopad_zsh(&runtime->options, argv[1], argc - 2,
+					  &argv[2]);
 	if (!strcmp(argv[0], "batch-set") && argc >= 4 &&
 	    !parse_u32_zsh(argv[2], &a))
 		return command_batch_set_zsh(&runtime->options, argv[1], a,

@@ -224,6 +224,7 @@ static int __init gpioctl_gpiolib_init_zsh(void)
 			.abi_version = GPIOCTL_ZSH_HAL_ABI_VERSION,
 			.struct_size = sizeof(desc),
 			.name = entry->name,
+			.hardware_key = dev_name(entry->chip->parent),
 			.line_count = entry->chip->ngpio,
 			.capabilities = GPIOCTL_ZSH_CAP_INPUT |
 				GPIOCTL_ZSH_CAP_OUTPUT |

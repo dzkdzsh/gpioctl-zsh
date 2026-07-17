@@ -77,9 +77,18 @@ struct gpioctl_snapshot_zsh {
 	int logical_value;
 };
 
+struct gpioctl_iopad_provider_zsh {
+	struct gpioctl_iopad_provider_desc_zsh desc;
+	atomic_t active_calls;
+	wait_queue_head_t wait;
+	bool unregistering;
+};
+
 static dev_t gpioctl_base_devt_zsh;
 static struct class *gpioctl_class_zsh;
 static DEFINE_IDA(gpioctl_ida_zsh);
+static DEFINE_MUTEX(gpioctl_iopad_lock_zsh);
+static struct gpioctl_iopad_provider_zsh *gpioctl_iopad_provider_zsh;
 
 static_assert(sizeof(struct gpioctl_zsh_event) == 48);
 static_assert(sizeof(struct gpioctl_zsh_batch_op) == 32);
@@ -102,6 +111,32 @@ static int gpioctl_validate_header_zsh(u32 version, u32 size,
 	if (size != expected)
 		return -EINVAL;
 	return 0;
+}
+
+static struct gpioctl_iopad_provider_zsh *gpioctl_get_iopad_zsh(void)
+{
+	struct gpioctl_iopad_provider_zsh *provider;
+
+	mutex_lock(&gpioctl_iopad_lock_zsh);
+	provider = gpioctl_iopad_provider_zsh;
+	if (provider) {
+		if (provider->unregistering ||
+		    !try_module_get(provider->desc.owner))
+			provider = NULL;
+		else
+			atomic_inc(&provider->active_calls);
+	}
+	mutex_unlock(&gpioctl_iopad_lock_zsh);
+	return provider;
+}
+
+static void gpioctl_put_iopad_zsh(struct gpioctl_iopad_provider_zsh *provider)
+{
+	if (provider) {
+		if (atomic_dec_and_test(&provider->active_calls))
+			wake_up_all(&provider->wait);
+		module_put(provider->desc.owner);
+	}
 }
 
 static int gpioctl_physical_value_zsh(const struct gpioctl_line_state_zsh *line,
@@ -829,6 +864,7 @@ static int gpioctl_iopad_config_zsh(struct gpioctl_session_zsh *session,
 				    void __user *arg)
 {
 	struct gpioctl_controller_zsh *controller = session->controller;
+	struct gpioctl_iopad_provider_zsh *provider = NULL;
 	struct gpioctl_zsh_iopad_config config;
 	struct gpioctl_line_state_zsh *line;
 	int ret;
@@ -837,8 +873,6 @@ static int gpioctl_iopad_config_zsh(struct gpioctl_session_zsh *session,
 		atomic64_inc(&controller->denials);
 		return -EPERM;
 	}
-	if (!controller->backend.ops->set_iopad)
-		return -EOPNOTSUPP;
 	if (copy_from_user(&config, arg, sizeof(config)))
 		return -EFAULT;
 	ret = gpioctl_validate_header_zsh(config.abi_version,
@@ -847,17 +881,35 @@ static int gpioctl_iopad_config_zsh(struct gpioctl_session_zsh *session,
 		return ret;
 	if (!gpioctl_reserved_zero_zsh(config.reserved,
 					ARRAY_SIZE(config.reserved)) ||
-	    config.flags || config.bias > GPIOCTL_ZSH_BIAS_PULL_DOWN)
+	    config.flags & ~(GPIOCTL_ZSH_IOPAD_APPLY_BIAS |
+			     GPIOCTL_ZSH_IOPAD_APPLY_DRIVE |
+			     GPIOCTL_ZSH_IOPAD_APPLY_MUX) ||
+	    !config.flags || config.bias > GPIOCTL_ZSH_BIAS_PULL_DOWN ||
+	    config.mux_state > GPIOCTL_ZSH_MUX_GPIO)
 		return -EINVAL;
+	if (!controller->backend.ops->set_iopad) {
+		provider = gpioctl_get_iopad_zsh();
+		if (!provider || !provider->desc.ops->supports(
+				provider->desc.priv, controller->backend.hardware_key,
+				config.offset)) {
+			gpioctl_put_iopad_zsh(provider);
+			return -EOPNOTSUPP;
+		}
+	}
 
 	mutex_lock(&session->lock);
 	line = gpioctl_owned_line_zsh(session, config.offset);
 	if (!line)
 		ret = -EPERM;
-	else
+	else if (controller->backend.ops->set_iopad)
 		ret = controller->backend.ops->set_iopad(
 			controller->backend.priv, line->hal_line, &config);
+	else
+		ret = provider->desc.ops->configure(
+			provider->desc.priv, controller->backend.hardware_key,
+			config.offset, &config);
 	mutex_unlock(&session->lock);
+	gpioctl_put_iopad_zsh(provider);
 	return ret;
 }
 
@@ -883,6 +935,7 @@ static long gpioctl_ioctl_zsh(struct file *file, unsigned int command,
 		break;
 	}
 	case GPIOCTL_ZSH_IOC_GET_CAPS: {
+		struct gpioctl_iopad_provider_zsh *provider;
 		struct gpioctl_zsh_caps caps = {
 			.abi_version = GPIOCTL_ZSH_ABI_VERSION,
 			.struct_size = sizeof(caps),
@@ -892,10 +945,17 @@ static long gpioctl_ioctl_zsh(struct file *file, unsigned int command,
 			.event_queue_size = GPIOCTL_ZSH_EVENT_QUEUE_SIZE,
 		};
 
+		provider = gpioctl_get_iopad_zsh();
+		if (provider && provider->desc.ops->supports(
+				provider->desc.priv, controller->backend.hardware_key, 0))
+			caps.capabilities |= GPIOCTL_ZSH_CAP_IOPAD;
+		gpioctl_put_iopad_zsh(provider);
+
 		ret = copy_to_user(arg, &caps, sizeof(caps)) ? -EFAULT : 0;
 		break;
 	}
 	case GPIOCTL_ZSH_IOC_GET_LINE_CAPS: {
+		struct gpioctl_iopad_provider_zsh *provider;
 		struct gpioctl_zsh_line_caps caps;
 
 		if (copy_from_user(&caps, arg, sizeof(caps))) {
@@ -917,6 +977,14 @@ static long gpioctl_ioctl_zsh(struct file *file, unsigned int command,
 		if (controller->backend.ops->get_iopad_caps)
 			ret = controller->backend.ops->get_iopad_caps(
 				controller->backend.priv, caps.offset, &caps);
+		provider = gpioctl_get_iopad_zsh();
+		if (!ret && provider && provider->desc.ops->supports(
+				provider->desc.priv, controller->backend.hardware_key,
+				caps.offset))
+			ret = provider->desc.ops->get_caps(
+				provider->desc.priv, controller->backend.hardware_key,
+				caps.offset, &caps);
+		gpioctl_put_iopad_zsh(provider);
 		if (!ret && copy_to_user(arg, &caps, sizeof(caps)))
 			ret = -EFAULT;
 		break;
@@ -1121,7 +1189,8 @@ int gpioctl_register_backend_zsh(const struct gpioctl_backend_desc_zsh *desc,
 	struct gpioctl_controller_zsh *controller;
 	int id, ret;
 
-	if (!desc || !result || !desc->name || !desc->ops || !desc->owner ||
+	if (!desc || !result || !desc->name || !desc->hardware_key ||
+	    !desc->ops || !desc->owner ||
 	    desc->abi_version != GPIOCTL_ZSH_HAL_ABI_VERSION ||
 	    desc->struct_size != sizeof(*desc) ||
 	    desc->ops->abi_version != GPIOCTL_ZSH_HAL_ABI_VERSION ||
@@ -1203,6 +1272,63 @@ int gpioctl_unregister_backend_zsh(struct gpioctl_controller_zsh *controller)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gpioctl_unregister_backend_zsh);
+
+int gpioctl_register_iopad_provider_zsh(
+	const struct gpioctl_iopad_provider_desc_zsh *desc,
+	struct gpioctl_iopad_provider_zsh **result)
+{
+	struct gpioctl_iopad_provider_zsh *provider;
+	int ret = 0;
+
+	if (!desc || !result || !desc->name || !desc->ops || !desc->owner ||
+	    desc->abi_version != GPIOCTL_ZSH_HAL_ABI_VERSION ||
+	    desc->struct_size != sizeof(*desc) ||
+	    desc->ops->abi_version != GPIOCTL_ZSH_HAL_ABI_VERSION ||
+	    desc->ops->struct_size != sizeof(*desc->ops) ||
+	    !desc->ops->supports || !desc->ops->get_caps ||
+	    !desc->ops->configure)
+		return -EINVAL;
+	provider = kzalloc(sizeof(*provider), GFP_KERNEL);
+	if (!provider)
+		return -ENOMEM;
+	provider->desc = *desc;
+	init_waitqueue_head(&provider->wait);
+	mutex_lock(&gpioctl_iopad_lock_zsh);
+	if (gpioctl_iopad_provider_zsh)
+		ret = -EBUSY;
+	else
+		gpioctl_iopad_provider_zsh = provider;
+	mutex_unlock(&gpioctl_iopad_lock_zsh);
+	if (ret) {
+		kfree(provider);
+		return ret;
+	}
+	*result = provider;
+	pr_info(GPIOCTL_ZSH_NAME ": registered IOPAD provider=%s\n", desc->name);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gpioctl_register_iopad_provider_zsh);
+
+int gpioctl_unregister_iopad_provider_zsh(
+	struct gpioctl_iopad_provider_zsh *provider)
+{
+	if (!provider)
+		return -EINVAL;
+	mutex_lock(&gpioctl_iopad_lock_zsh);
+	if (gpioctl_iopad_provider_zsh != provider) {
+		mutex_unlock(&gpioctl_iopad_lock_zsh);
+		return -ENOENT;
+	}
+	gpioctl_iopad_provider_zsh = NULL;
+	provider->unregistering = true;
+	mutex_unlock(&gpioctl_iopad_lock_zsh);
+	wait_event(provider->wait, !atomic_read(&provider->active_calls));
+	pr_info(GPIOCTL_ZSH_NAME ": unregistered IOPAD provider=%s\n",
+		provider->desc.name);
+	kfree(provider);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gpioctl_unregister_iopad_provider_zsh);
 
 static int __init gpioctl_core_init_zsh(void)
 {

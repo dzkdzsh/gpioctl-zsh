@@ -169,6 +169,7 @@ static int __init gpioctl_mock_init_zsh(void)
 		.abi_version = GPIOCTL_ZSH_HAL_ABI_VERSION,
 		.struct_size = sizeof(desc),
 		.name = "mock",
+		.hardware_key = "mock0",
 		.line_count = GPIOCTL_MOCK_LINES_ZSH,
 		.capabilities = GPIOCTL_ZSH_CAP_INPUT |
 			GPIOCTL_ZSH_CAP_OUTPUT |
