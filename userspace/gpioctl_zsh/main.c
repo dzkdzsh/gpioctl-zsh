@@ -900,8 +900,10 @@ static int execute_tokens_zsh(struct runtime_zsh *runtime, int argc, char **argv
 	if (!strcmp(argv[0], "resolve") && argc == 2) {
 		struct target_zsh target;
 
-		if (resolve_target_zsh(&runtime->options, argv[1], &target))
+		if (resolve_target_zsh(&runtime->options, argv[1], &target)) {
+			print_error_zsh(&runtime->options, "resolve", argv[1]);
 			return -1;
+		}
 		print_target_zsh(&runtime->options, &target);
 		return 0;
 	}
@@ -967,6 +969,7 @@ static int execute_tokens_zsh(struct runtime_zsh *runtime, int argc, char **argv
 
 invalid:
 	errno = EINVAL;
+	print_error_zsh(&runtime->options, "command", argv[0]);
 	return -1;
 }
 
@@ -1031,8 +1034,15 @@ static int run_stream_zsh(struct runtime_zsh *runtime, FILE *stream,
 		}
 		ret = execute_tokens_zsh(runtime, token_count, tokens);
 		if (ret) {
-			fprintf(stderr, "%s:%u: command failed: %s\n", source,
-				line_number, strerror(errno));
+			if (runtime->options.json)
+				fprintf(stderr,
+					"{\"ok\":false,\"type\":\"script-error\","
+					"\"source\":\"%s\",\"line\":%u,"
+					"\"errno\":%d,\"error\":\"%s\"}\n",
+					source, line_number, errno, strerror(errno));
+			else
+				fprintf(stderr, "%s:%u: command failed: %s\n",
+					source, line_number, strerror(errno));
 			overall = -1;
 			if (runtime->options.strict)
 				break;
@@ -1106,8 +1116,6 @@ int main(int argc, char **argv)
 		ret = run_stream_zsh(&runtime, stdin, "stdin", true);
 	} else {
 		ret = execute_tokens_zsh(&runtime, argc - index, &argv[index]);
-		if (ret)
-			print_error_zsh(&runtime.options, "command", argv[index]);
 	}
 	cleanup_runtime_zsh(&runtime);
 	return ret ? 1 : 0;
