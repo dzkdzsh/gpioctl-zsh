@@ -96,12 +96,12 @@ static int gpioctl_gpiolib_direction_output_zsh(void *priv, void *line_priv,
 
 static int gpioctl_gpiolib_get_value_zsh(void *priv, void *line_priv)
 {
-	return gpiod_get_value(line_priv);
+	return gpiod_get_value_cansleep(line_priv);
 }
 
 static int gpioctl_gpiolib_set_value_zsh(void *priv, void *line_priv, int value)
 {
-	gpiod_set_value(line_priv, !!value);
+	gpiod_set_value_cansleep(line_priv, !!value);
 	return 0;
 }
 

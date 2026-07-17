@@ -67,6 +67,7 @@ struct gpioctl_session_zsh {
 	u32 event_tail;
 	u32 event_count;
 	u64 event_sequence;
+	bool overflow_pending;
 	bool closing;
 };
 
@@ -184,6 +185,7 @@ static void gpioctl_push_event_zsh(struct gpioctl_line_state_zsh *line,
 		session->event_tail = (session->event_tail + 1) %
 			GPIOCTL_ZSH_EVENT_QUEUE_SIZE;
 		session->event_count--;
+		session->overflow_pending = true;
 		atomic64_inc(&controller->event_drops);
 	}
 	event = &session->events[session->event_head];
@@ -194,8 +196,10 @@ static void gpioctl_push_event_zsh(struct gpioctl_line_state_zsh *line,
 	event->edge = edge;
 	event->timestamp_ns = now_ns;
 	event->sequence = ++session->event_sequence;
-	if (atomic64_read(&controller->event_drops))
+	if (session->overflow_pending) {
 		event->flags |= GPIOCTL_ZSH_EVENT_OVERFLOW;
+		session->overflow_pending = false;
+	}
 	session->event_head = (session->event_head + 1) %
 		GPIOCTL_ZSH_EVENT_QUEUE_SIZE;
 	session->event_count++;
@@ -204,7 +208,7 @@ static void gpioctl_push_event_zsh(struct gpioctl_line_state_zsh *line,
 	wake_up_interruptible(&session->event_wait);
 }
 
-static irqreturn_t gpioctl_irq_handler_zsh(int irq, void *data)
+static irqreturn_t gpioctl_irq_thread_zsh(int irq, void *data)
 {
 	struct gpioctl_line_state_zsh *line = data;
 	struct gpioctl_controller_zsh *controller = line->session->controller;
@@ -848,8 +852,9 @@ static int gpioctl_event_config_zsh(struct gpioctl_session_zsh *session,
 	line->edge = config.edge;
 	line->debounce_us = config.debounce_us;
 	line->last_event_ns = 0;
-	ret = request_irq(irq, gpioctl_irq_handler_zsh, irq_flags,
-			  GPIOCTL_ZSH_NAME, line);
+	ret = request_threaded_irq(irq, NULL, gpioctl_irq_thread_zsh,
+				   irq_flags | IRQF_ONESHOT,
+				   GPIOCTL_ZSH_NAME, line);
 	if (ret) {
 		line->edge = GPIOCTL_ZSH_EDGE_NONE;
 		goto out;
