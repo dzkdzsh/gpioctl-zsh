@@ -63,7 +63,7 @@ static void usage_zsh(FILE *stream)
 		"  blink TARGET COUNT ON_MS OFF_MS\n"
 		"  pair-blink TARGET_A TARGET_B COUNT INTERVAL_MS\n"
 		"  batch-set DEVICE HOLD_MS OFFSET=VALUE ...\n"
-		"  watch TARGET rising|falling|both TIMEOUT_MS [COUNT]\n"
+		"  watch TARGET rising|falling|both TIMEOUT_MS [COUNT] [DEBOUNCE_US]\n"
 		"  iopad TARGET [mux=gpio] [bias=none|up|down] [drive=0..15]\n"
 		"  stats TARGET|DEVICE\n"
 		"  acquire TARGET in|out [INITIAL_VALUE]\n"
@@ -771,7 +771,8 @@ static int parse_edge_zsh(const char *text, uint32_t *edge)
 
 static int command_watch_zsh(const struct cli_options_zsh *options,
 			     const char *name, uint32_t edge,
-			     uint32_t timeout_ms, uint32_t wanted)
+			     uint32_t timeout_ms, uint32_t wanted,
+			     uint32_t debounce_us)
 {
 	struct target_zsh target;
 	struct gpioctl_zsh_handle *handle;
@@ -785,11 +786,15 @@ static int command_watch_zsh(const struct cli_options_zsh *options,
 	if (!handle)
 		return -1;
 	if (options->dry_run) {
-		printf("watch %s dry-run\n", name);
+		if (options->json)
+			printf("{\"ok\":true,\"operation\":\"watch\","
+			       "\"target\":\"%s\",\"dry_run\":true}\n", name);
+		else
+			printf("watch %s dry-run\n", name);
 		ret = 0;
 		goto out;
 	}
-	if (gpioctl_zsh_event_config(handle, target.offset, edge, 0))
+	if (gpioctl_zsh_event_config(handle, target.offset, edge, debounce_us))
 		goto out;
 	pollfd.fd = gpioctl_zsh_fd(handle);
 	pollfd.events = POLLIN;
@@ -812,10 +817,20 @@ static int command_watch_zsh(const struct cli_options_zsh *options,
 			goto out;
 		count = (size_t)bytes / sizeof(events[0]);
 		for (i = 0; i < count; i++) {
-			printf("event target=%s edge=%" PRIu32 " timestamp_ns=%" PRIu64
-			       " sequence=%" PRIu64 " flags=0x%" PRIx32 "\n",
-			       name, events[i].edge, (uint64_t)events[i].timestamp_ns,
-			       (uint64_t)events[i].sequence, events[i].flags);
+			if (options->json)
+				printf("{\"ok\":true,\"type\":\"event\","
+				       "\"target\":\"%s\",\"edge\":%" PRIu32 ","
+				       "\"timestamp_ns\":%" PRIu64 ","
+				       "\"sequence\":%" PRIu64 ",\"flags\":%" PRIu32
+				       "}\n", name, events[i].edge,
+				       (uint64_t)events[i].timestamp_ns,
+				       (uint64_t)events[i].sequence, events[i].flags);
+			else
+				printf("event target=%s edge=%" PRIu32
+				       " timestamp_ns=%" PRIu64 " sequence=%" PRIu64
+				       " flags=0x%" PRIx32 "\n", name, events[i].edge,
+				       (uint64_t)events[i].timestamp_ns,
+				       (uint64_t)events[i].sequence, events[i].flags);
 			received++;
 		}
 	}
@@ -952,12 +967,15 @@ static int execute_tokens_zsh(struct runtime_zsh *runtime, int argc, char **argv
 	}
 	if (!strcmp(argv[0], "release") && argc == 2)
 		return command_release_zsh(runtime, argv[1]);
-	if (!strcmp(argv[0], "watch") && (argc == 4 || argc == 5) &&
+	if (!strcmp(argv[0], "watch") && argc >= 4 && argc <= 6 &&
 	    !parse_edge_zsh(argv[2], &a) && !parse_u32_zsh(argv[3], &b)) {
-		d = 1;
-		if (argc == 5 && parse_u32_zsh(argv[4], &d))
+		c = 1;
+		d = 0;
+		if (argc >= 5 && parse_u32_zsh(argv[4], &c))
 			goto invalid;
-		return command_watch_zsh(&runtime->options, argv[1], a, b, d);
+		if (argc == 6 && parse_u32_zsh(argv[5], &d))
+			goto invalid;
+		return command_watch_zsh(&runtime->options, argv[1], a, b, c, d);
 	}
 	if (!strcmp(argv[0], "iopad") && argc >= 3)
 		return command_iopad_zsh(&runtime->options, argv[1], argc - 2,

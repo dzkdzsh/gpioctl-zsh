@@ -11,6 +11,8 @@ project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cli=${GPIOCTL_ZSH_CLI:-$project_dir/build/userspace/gpioctl_zsh}
 config=${GPIOCTL_ZSH_CONFIG:-$project_dir/config/phytium-pi-v1.conf}
 holder_pid=
+event_log=
+overflow_log=
 
 cleanup_zsh()
 {
@@ -18,6 +20,7 @@ cleanup_zsh()
 		kill "$holder_pid" 2>/dev/null || true
 		wait "$holder_pid" 2>/dev/null || true
 	fi
+	rm -f "$event_log" "$overflow_log"
 	modprobe -r gpioctl_mock_zsh 2>/dev/null || true
 	modprobe -r gpioctl_core_zsh 2>/dev/null || true
 	if [ -x "$project_dir/scripts/load_zsh.sh" ] &&
@@ -31,8 +34,8 @@ test -x "$cli"
 if [ -x "$project_dir/scripts/unload_zsh.sh" ]; then
 	"$project_dir/scripts/unload_zsh.sh"
 fi
-modprobe gpioctl_core_zsh
-modprobe gpioctl_mock_zsh fail_offset=-1
+insmod "$project_dir/build/kernel/gpioctl_core_zsh.ko"
+insmod "$project_dir/build/kernel/gpioctl_mock_zsh.ko" fail_offset=-1
 
 "$cli" --config "$config" list | grep -q '/dev/gpio0_zsh'
 printf '%s\n' \
@@ -67,5 +70,63 @@ wait "$holder_pid"
 holder_pid=
 "$cli" --config "$config" stats /dev/gpio0_zsh |
 	grep -q 'active_leases=0'
+
+event_log=$(mktemp)
+"$cli" --config "$config" watch /dev/gpio0_zsh:5 both 10000 3 \
+	>"$event_log" &
+holder_pid=$!
+sleep 1
+printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+wait "$holder_pid"
+holder_pid=
+test "$(grep -c '^event ' "$event_log")" -eq 3
+grep -q 'sequence=1 ' "$event_log"
+grep -q 'sequence=3 ' "$event_log"
+
+: >"$event_log"
+"$cli" --json --config "$config" watch /dev/gpio0_zsh:5 both \
+	10000 2 500000 >"$event_log" &
+holder_pid=$!
+sleep 1
+printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+sleep 0.6
+printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+wait "$holder_pid"
+holder_pid=
+test "$(grep -c '\"type\":\"event\"' "$event_log")" -eq 2
+grep -q '\"sequence\":1' "$event_log"
+grep -q '\"sequence\":2' "$event_log"
+
+overflow_log=$(mktemp)
+"$project_dir/build/userspace/event_epoll_zsh" \
+	/dev/gpio0_zsh 6 5000 200 1 >"$overflow_log" &
+holder_pid=$!
+i=0
+while ! grep -q '^READY$' "$overflow_log"; do
+	i=$((i + 1))
+	if [ "$i" -ge 50 ]; then
+		echo "event epoll probe did not become ready" >&2
+		exit 1
+	fi
+	sleep 0.1
+done
+exec 9> /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+i=0
+while [ "$i" -lt 300 ]; do
+	printf '6\n' >&9
+	i=$((i + 1))
+done
+exec 9>&-
+wait "$holder_pid"
+holder_pid=
+grep -q 'event_epoll_zsh: PASS' "$overflow_log"
+grep -q 'events=256 ' "$overflow_log"
+grep -q 'overflow=44 drops=44 ' "$overflow_log"
+grep -q 'first_sequence=45 last_sequence=300' "$overflow_log"
+tail -n 1 "$overflow_log"
 
 echo "mock_smoke_zsh: PASS"

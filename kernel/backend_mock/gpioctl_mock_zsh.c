@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/errno.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
@@ -14,11 +17,13 @@ struct gpioctl_mock_line_zsh {
 	bool output;
 	int value;
 	u32 bias;
+	unsigned int irq;
 };
 
 struct gpioctl_mock_zsh {
 	struct mutex lock;
 	struct gpioctl_mock_line_zsh lines[GPIOCTL_MOCK_LINES_ZSH];
+	struct irq_domain *irq_domain;
 	struct gpioctl_controller_zsh *controller;
 };
 
@@ -26,6 +31,76 @@ static struct gpioctl_mock_zsh gpioctl_mock_zsh;
 static int fail_offset_zsh = -1;
 module_param_named(fail_offset, fail_offset_zsh, int, 0644);
 MODULE_PARM_DESC(fail_offset, "Mock line offset that returns -EIO, or -1");
+
+static void gpioctl_mock_irq_mask_zsh(struct irq_data *data)
+{
+}
+
+static void gpioctl_mock_irq_unmask_zsh(struct irq_data *data)
+{
+}
+
+static int gpioctl_mock_irq_set_type_zsh(struct irq_data *data,
+					 unsigned int type)
+{
+	return 0;
+}
+
+static struct irq_chip gpioctl_mock_irq_chip_zsh = {
+	.name = "gpioctl-mock-zsh",
+	.irq_mask = gpioctl_mock_irq_mask_zsh,
+	.irq_unmask = gpioctl_mock_irq_unmask_zsh,
+	.irq_set_type = gpioctl_mock_irq_set_type_zsh,
+};
+
+static int gpioctl_mock_irq_map_zsh(struct irq_domain *domain,
+				    unsigned int irq,
+				    irq_hw_number_t hardware_irq)
+{
+	irq_set_chip_data(irq, domain->host_data);
+	irq_set_chip_and_handler(irq, &gpioctl_mock_irq_chip_zsh,
+				 handle_simple_irq);
+	irq_set_noprobe(irq);
+	return 0;
+}
+
+static const struct irq_domain_ops gpioctl_mock_irq_domain_ops_zsh = {
+	.map = gpioctl_mock_irq_map_zsh,
+};
+
+static int gpioctl_mock_inject_set_zsh(const char *value,
+				       const struct kernel_param *parameter)
+{
+	struct gpioctl_mock_line_zsh *line;
+	unsigned int irq;
+	int offset, ret;
+
+	ret = kstrtoint(value, 0, &offset);
+	if (ret)
+		return ret;
+	if (offset < 0 || offset >= GPIOCTL_MOCK_LINES_ZSH)
+		return -ERANGE;
+	line = &gpioctl_mock_zsh.lines[offset];
+	mutex_lock(&gpioctl_mock_zsh.lock);
+	if (!line->requested || line->output) {
+		ret = -EBUSY;
+	} else {
+		line->value = !line->value;
+		irq = line->irq;
+		ret = 0;
+	}
+	mutex_unlock(&gpioctl_mock_zsh.lock);
+	if (ret)
+		return ret;
+	return generic_handle_irq_safe(irq);
+}
+
+static const struct kernel_param_ops gpioctl_mock_inject_ops_zsh = {
+	.set = gpioctl_mock_inject_set_zsh,
+};
+module_param_cb(inject_offset, &gpioctl_mock_inject_ops_zsh, NULL, 0200);
+MODULE_PARM_DESC(inject_offset,
+		 "Toggle a leased input line and emit its simulated IRQ");
 
 static int gpioctl_mock_maybe_fail_zsh(struct gpioctl_mock_line_zsh *line)
 {
@@ -150,6 +225,13 @@ static int gpioctl_mock_set_debounce_zsh(void *priv, void *line_priv,
 	return gpioctl_mock_maybe_fail_zsh(line_priv);
 }
 
+static int gpioctl_mock_to_irq_zsh(void *priv, void *line_priv)
+{
+	struct gpioctl_mock_line_zsh *line = line_priv;
+
+	return line->irq;
+}
+
 static const struct gpioctl_hal_ops_zsh gpioctl_mock_ops_zsh = {
 	.abi_version = GPIOCTL_ZSH_HAL_ABI_VERSION,
 	.struct_size = sizeof(gpioctl_mock_ops_zsh),
@@ -161,6 +243,7 @@ static const struct gpioctl_hal_ops_zsh gpioctl_mock_ops_zsh = {
 	.set_value = gpioctl_mock_set_value_zsh,
 	.set_bias = gpioctl_mock_set_bias_zsh,
 	.set_debounce = gpioctl_mock_set_debounce_zsh,
+	.to_irq = gpioctl_mock_to_irq_zsh,
 };
 
 static int __init gpioctl_mock_init_zsh(void)
@@ -176,25 +259,56 @@ static int __init gpioctl_mock_init_zsh(void)
 			GPIOCTL_ZSH_CAP_BIAS_DISABLE |
 			GPIOCTL_ZSH_CAP_BIAS_PULL_UP |
 			GPIOCTL_ZSH_CAP_BIAS_PULL_DOWN |
+			GPIOCTL_ZSH_CAP_EDGE_RISING |
+			GPIOCTL_ZSH_CAP_EDGE_FALLING |
+			GPIOCTL_ZSH_CAP_DEBOUNCE |
 			GPIOCTL_ZSH_CAP_BATCH,
 		.ops = &gpioctl_mock_ops_zsh,
 		.priv = &gpioctl_mock_zsh,
 		.owner = THIS_MODULE,
 	};
 	unsigned int i;
+	int ret;
 
 	mutex_init(&gpioctl_mock_zsh.lock);
-	for (i = 0; i < GPIOCTL_MOCK_LINES_ZSH; i++)
+	gpioctl_mock_zsh.irq_domain = irq_domain_add_linear(
+		NULL, GPIOCTL_MOCK_LINES_ZSH, &gpioctl_mock_irq_domain_ops_zsh,
+		&gpioctl_mock_zsh);
+	if (!gpioctl_mock_zsh.irq_domain)
+		return -ENOMEM;
+	for (i = 0; i < GPIOCTL_MOCK_LINES_ZSH; i++) {
 		gpioctl_mock_zsh.lines[i].offset = i;
-	return gpioctl_register_backend_zsh(&desc, &gpioctl_mock_zsh.controller);
+		gpioctl_mock_zsh.lines[i].irq = irq_create_mapping(
+			gpioctl_mock_zsh.irq_domain, i);
+		if (!gpioctl_mock_zsh.lines[i].irq) {
+			ret = -ENOMEM;
+			goto err_mappings;
+		}
+	}
+	ret = gpioctl_register_backend_zsh(&desc, &gpioctl_mock_zsh.controller);
+	if (!ret)
+		return 0;
+err_mappings:
+	while (i) {
+		i--;
+		irq_dispose_mapping(gpioctl_mock_zsh.lines[i].irq);
+		gpioctl_mock_zsh.lines[i].irq = 0;
+	}
+	irq_domain_remove(gpioctl_mock_zsh.irq_domain);
+	gpioctl_mock_zsh.irq_domain = NULL;
+	return ret;
 }
 
 static void __exit gpioctl_mock_exit_zsh(void)
 {
+	unsigned int i;
 	int ret = gpioctl_unregister_backend_zsh(gpioctl_mock_zsh.controller);
 
 	if (ret)
 		pr_err("gpioctl_mock_zsh: unregister failed: %d\n", ret);
+	for (i = 0; i < GPIOCTL_MOCK_LINES_ZSH; i++)
+		irq_dispose_mapping(gpioctl_mock_zsh.lines[i].irq);
+	irq_domain_remove(gpioctl_mock_zsh.irq_domain);
 }
 
 module_init(gpioctl_mock_init_zsh);
