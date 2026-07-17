@@ -1,0 +1,3 @@
+# gpioctl_zsh character devices: privileged IOPAD operations still require
+# CAP_SYS_RAWIO in the kernel, while ordinary GPIO operations use this group.
+KERNEL=="gpio[0-9]*_zsh", GROUP="gpio", MODE="0660"
