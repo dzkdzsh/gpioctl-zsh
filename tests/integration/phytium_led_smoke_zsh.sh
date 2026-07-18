@@ -14,15 +14,8 @@ test "$(cat /sys/kernel/config/device-tree/overlays/gpioctl_zsh/status)" = appli
 "$cli" --config "$config" resolve GPIO1_11
 "$cli" --config "$config" resolve GPIO4_7
 
-# W53 is not GPIO in the board firmware default. This privileged operation only
-# changes the mux bits; existing bias and drive settings remain untouched.
-if [ "$(id -u)" -eq 0 ]; then
-	"$cli" --config "$config" iopad GPIO4_7 mux=gpio
-else
-	echo "run as root once to configure W53 mux before the LED test" >&2
-	exit 1
-fi
-
+# The core selects each pad's GPIO mux for the lease and restores the previous
+# mux/bias/drive on release; the smoke test must not leave a manual mux change.
 "$cli" --config "$config" blink LED20 "$cycles" "$interval_ms" "$interval_ms"
 "$cli" --config "$config" pair-blink GPIO1_11 GPIO4_7 \
 	"$cycles" "$interval_ms"

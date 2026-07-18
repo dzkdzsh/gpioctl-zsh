@@ -68,3 +68,8 @@ sudo tests/integration/mock_smoke_zsh.sh
 涉及 IOPAD、释放顺序或真实后端时，还必须运行板级 smoke，并检查所有相关
 `active_leases=0`、错误统计和内核日志。KUnit `SKIP` 不等于失败，但发布报告必须
 把它列为当前内核配置限制，不能省略。
+
+普通模块重载必须保留 configfs 中已应用的 `gpioctl_zsh` overlay。Linux 对动态
+删除已覆盖到既有设备节点的属性会明确报告内存泄漏风险，因此
+`scripts/unload_zsh.sh` 默认不删除 overlay；只有完整卸载使用显式
+`--remove-overlay`。生命周期/压力测试不得在循环中反复删除和重建该 overlay。

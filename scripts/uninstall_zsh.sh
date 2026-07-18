@@ -9,7 +9,7 @@ fi
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 kernel_release=${KERNEL_RELEASE:-$(uname -r)}
-"$project_dir/scripts/unload_zsh.sh" 2>/dev/null || true
+"$project_dir/scripts/unload_zsh.sh" --remove-overlay 2>/dev/null || true
 rm -f /usr/local/bin/gpioctl_zsh
 rm -f /usr/local/lib/libgpioctl_zsh.a
 rm -f /usr/local/include/gpioctl_zsh.h

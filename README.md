@@ -46,6 +46,11 @@ sudo ./scripts/unload_zsh.sh
 sudo make uninstall
 ```
 
+普通 `unload_zsh.sh` 只卸载模块并保留已应用的设备树 overlay，便于反复加载、mock
+和压力测试，也避免 Linux 对动态删除既有节点属性给出的内存泄漏警告。只有完整
+`make uninstall` 才调用 `unload_zsh.sh --remove-overlay`；在不卸载软件的正常开发
+周期中，overlay 被视为持久板级配置。
+
 安装器将同一版本的四个模块放入：
 
 ```text
