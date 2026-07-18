@@ -1,7 +1,7 @@
 KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD_DIR ?= $(CURDIR)/build
 
-.PHONY: all kernel userspace dts clean check install uninstall
+.PHONY: all kernel userspace dts clean check kunit install uninstall
 
 all: kernel userspace dts
 
@@ -18,6 +18,9 @@ dts:
 
 check:
 	$(MAKE) -C userspace BUILD_DIR=$(BUILD_DIR)/userspace check
+
+kunit:
+	./scripts/run_kunit_zsh.sh
 
 install: all
 	./scripts/install_zsh.sh

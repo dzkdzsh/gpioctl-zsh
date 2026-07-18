@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
@@ -17,6 +18,7 @@
 #include <linux/wait.h>
 
 #include "gpioctl_hal_zsh.h"
+#include "gpioctl_logic_zsh.h"
 
 #define GPIOCTL_ZSH_NAME "gpioctl_core_zsh"
 #define GPIOCTL_ZSH_MAX_CONTROLLERS 256
@@ -101,47 +103,14 @@ static struct gpioctl_iopad_provider_zsh *gpioctl_iopad_provider_zsh;
 static_assert(sizeof(struct gpioctl_zsh_event) == 48);
 static_assert(sizeof(struct gpioctl_zsh_batch_op) == 32);
 
-static bool gpioctl_reserved_zero_zsh(const u32 *reserved, size_t count)
-{
-	size_t i;
-
-	for (i = 0; i < count; i++)
-		if (reserved[i])
-			return false;
-	return true;
-}
-
-static int gpioctl_validate_header_zsh(u32 version, u32 size,
-				       size_t expected)
-{
-	if (version != GPIOCTL_ZSH_ABI_VERSION)
-		return -EPROTO;
-	if (size != expected)
-		return -EINVAL;
-	return 0;
-}
+#define gpioctl_reserved_zero_zsh gpioctl_reserved_zero_logic_zsh
+#define gpioctl_validate_header_zsh gpioctl_validate_header_logic_zsh
 
 static int gpioctl_validate_policy_zsh(
 	const struct gpioctl_line_policy_desc_zsh *policy)
 {
-	const u32 known_flags = GPIOCTL_ZSH_POLICY_ALLOW_UNPRIVILEGED |
-		GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED | GPIOCTL_ZSH_POLICY_RESERVED;
-
-	if (policy->flags & ~known_flags ||
-	    policy->safe_direction > GPIOCTL_ZSH_DIRECTION_OUTPUT ||
-	    policy->safe_value > 1 ||
-	    policy->safe_bias < GPIOCTL_ZSH_BIAS_DISABLE ||
-	    policy->safe_bias > GPIOCTL_ZSH_BIAS_PULL_DOWN)
-		return -EINVAL;
-	if ((policy->flags & GPIOCTL_ZSH_POLICY_RESERVED) &&
-	    (policy->flags != GPIOCTL_ZSH_POLICY_RESERVED ||
-	     policy->safe_direction != GPIOCTL_ZSH_DIRECTION_INPUT ||
-	     policy->safe_value))
-		return -EINVAL;
-	if (policy->safe_direction == GPIOCTL_ZSH_DIRECTION_OUTPUT &&
-	    !(policy->flags & GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED))
-		return -EINVAL;
-	return 0;
+	return gpioctl_validate_policy_logic_zsh(policy->flags,
+		policy->safe_direction, policy->safe_value, policy->safe_bias);
 }
 
 static struct gpioctl_iopad_provider_zsh *gpioctl_get_iopad_zsh(void)
@@ -277,13 +246,13 @@ static int gpioctl_set_bias_zsh(struct gpioctl_controller_zsh *controller,
 static int gpioctl_physical_value_zsh(const struct gpioctl_line_state_zsh *line,
 				      int logical)
 {
-	return (!!logical) ^ line->active_low;
+	return gpioctl_active_low_value_logic_zsh(logical, line->active_low);
 }
 
 static int gpioctl_logical_value_zsh(const struct gpioctl_line_state_zsh *line,
 				     int physical)
 {
-	return (!!physical) ^ line->active_low;
+	return gpioctl_active_low_value_logic_zsh(physical, line->active_low);
 }
 
 static int gpioctl_verify_value_zsh(
@@ -315,26 +284,28 @@ static void gpioctl_push_event_zsh(struct gpioctl_line_state_zsh *line,
 	struct gpioctl_controller_zsh *controller = session->controller;
 	struct gpioctl_zsh_event *event;
 	unsigned long irq_flags;
+	u32 event_slot;
+	bool dropped;
 
 	spin_lock_irqsave(&session->event_lock, irq_flags);
 	if (session->closing) {
 		spin_unlock_irqrestore(&session->event_lock, irq_flags);
 		return;
 	}
-	if (line->debounce_us && line->last_event_ns &&
-	    now_ns - line->last_event_ns < (u64)line->debounce_us * NSEC_PER_USEC) {
+	if (!gpioctl_debounce_accept_logic_zsh(line->debounce_us,
+		line->last_event_ns, now_ns)) {
 		spin_unlock_irqrestore(&session->event_lock, irq_flags);
 		return;
 	}
 	line->last_event_ns = now_ns;
-	if (session->event_count == GPIOCTL_ZSH_EVENT_QUEUE_SIZE) {
-		session->event_tail = (session->event_tail + 1) %
-			GPIOCTL_ZSH_EVENT_QUEUE_SIZE;
-		session->event_count--;
+	event_slot = gpioctl_ring_push_logic_zsh(&session->event_head,
+		&session->event_tail, &session->event_count,
+		GPIOCTL_ZSH_EVENT_QUEUE_SIZE, &dropped);
+	if (dropped) {
 		session->overflow_pending = true;
 		atomic64_inc(&controller->event_drops);
 	}
-	event = &session->events[session->event_head];
+	event = &session->events[event_slot];
 	memset(event, 0, sizeof(*event));
 	event->abi_version = GPIOCTL_ZSH_ABI_VERSION;
 	event->struct_size = sizeof(*event);
@@ -346,9 +317,6 @@ static void gpioctl_push_event_zsh(struct gpioctl_line_state_zsh *line,
 		event->flags |= GPIOCTL_ZSH_EVENT_OVERFLOW;
 		session->overflow_pending = false;
 	}
-	session->event_head = (session->event_head + 1) %
-		GPIOCTL_ZSH_EVENT_QUEUE_SIZE;
-	session->event_count++;
 	atomic64_inc(&controller->events);
 	spin_unlock_irqrestore(&session->event_lock, irq_flags);
 	wake_up_interruptible(&session->event_wait);
@@ -375,6 +343,7 @@ static irqreturn_t gpioctl_irq_thread_zsh(int irq, void *data)
 
 static void gpioctl_disable_event_zsh(struct gpioctl_line_state_zsh *line)
 {
+	lockdep_assert_held(&line->session->lock);
 	if (line->irq >= 0) {
 		free_irq(line->irq, line);
 		line->irq = -1;
@@ -390,6 +359,7 @@ static int gpioctl_apply_snapshot_zsh(struct gpioctl_controller_zsh *controller,
 {
 	int ret;
 
+	lockdep_assert_held(&line->session->lock);
 	line->active_low = snapshot->active_low;
 	if (snapshot->output) {
 		ret = controller->backend.ops->direction_output(
@@ -443,6 +413,8 @@ static int gpioctl_release_line_locked_zsh(
 	int ret;
 	int restore_ret;
 
+	lockdep_assert_held(&controller->lock);
+	lockdep_assert_held(&session->lock);
 	gpioctl_disable_event_zsh(line);
 	ret = gpioctl_apply_safe_state_zsh(controller, line);
 	restore_ret = gpioctl_restore_iopad_zsh(controller, line);
@@ -714,6 +686,7 @@ static int gpioctl_config_line_locked_zsh(
 	struct gpioctl_snapshot_zsh old;
 	int ret;
 
+	lockdep_assert_held(&session->lock);
 	line = gpioctl_owned_line_zsh(session, config->offset);
 	if (!line)
 		return -EPERM;

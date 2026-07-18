@@ -15,10 +15,11 @@ CLI := $(BUILD_DIR)/gpioctl_zsh
 LAYOUT_TEST := $(BUILD_DIR)/uapi_layout_zsh
 EVENT_EPOLL_TEST := $(BUILD_DIR)/event_epoll_zsh
 POLICY_PROBE_TEST := $(BUILD_DIR)/policy_probe_zsh
+LOGIC_TEST := $(BUILD_DIR)/logic_zsh
 
 .PHONY: all clean check
 
-all: $(CLI) $(LAYOUT_TEST) $(EVENT_EPOLL_TEST) $(POLICY_PROBE_TEST)
+all: $(CLI) $(LAYOUT_TEST) $(EVENT_EPOLL_TEST) $(POLICY_PROBE_TEST) $(LOGIC_TEST)
 
 $(BUILD_DIR):
 	mkdir -p $@
@@ -44,8 +45,12 @@ $(EVENT_EPOLL_TEST): tests/event_epoll_zsh.c $(LIB_STATIC) | $(BUILD_DIR)
 $(POLICY_PROBE_TEST): tests/policy_probe_zsh.c $(LIB_STATIC) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
 
+$(LOGIC_TEST): tests/logic_zsh.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
+
 check: all
 	$(LAYOUT_TEST)
+	$(LOGIC_TEST)
 	$(CLI) --self-test
 
 clean:
