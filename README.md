@@ -120,6 +120,7 @@ sudo ./scripts/load_zsh.sh
 
 ```sh
 sudo gpioctl_zsh list
+ls -l /dev/gpio*_zsh
 ```
 
 同时满足以下条件即表示最小部署成功：
@@ -134,7 +135,8 @@ sudo gpioctl_zsh list
 ```sh
 sudo usermod -aG gpio "$USER"
 exit
-# 回到电脑后重新执行：ssh zsh@<BOARD_IP>
+# 回到电脑后重新登录板子
+ssh zsh@<BOARD_IP>
 gpioctl_zsh list
 ```
 
@@ -143,8 +145,9 @@ gpioctl_zsh list
 
 ## 构建与安装分别做了什么
 
-- `make -j"$(nproc)"`：构建四个内核模块、用户态库/CLI 和设备树 overlay；输出统一
-  进入 `build/`，不会把发布产物混入源码目录。
+- `make -j"$(nproc)"`：构建四个内核模块、用户态库/CLI 和设备树 overlay；可安装
+  工件统一复制到 `build/`。Kbuild 还会在 `kernel/` 暂存 `.o`、`.ko` 等构建文件，
+  `make clean` 会清理它们和 `build/`。
 - `make check`：执行不接触 GPIO 硬件的 UAPI 布局、公共逻辑和 CLI 自检。
 - `sudo make install`：安装刚构建的模块、CLI、头文件、板级配置、udev 规则和
   overlay，并执行 `depmod`；它不会自动加载驱动。
