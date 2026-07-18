@@ -64,7 +64,12 @@ test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/allowlisted_lines)" -eq 14
 test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/output_lines)" -eq 14
 test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/reserved_lines)" -eq 1
 "$project_dir/build/userspace/policy_probe_zsh" /dev/gpio0_zsh
+"$project_dir/build/userspace/uapi_invalid_zsh" /dev/gpio0_zsh
 python3 "$project_dir/tests/integration/json_cli_zsh.py" "$cli" "$config"
+python3 "$project_dir/tests/fuzz/cli_parser_fuzz_zsh.py" "$cli" "$config"
+GPIOCTL_ZSH_CLI="$cli" GPIOCTL_ZSH_CONFIG="$config" \
+	GPIOCTL_ZSH_ITERATIONS=10 \
+	"$project_dir/tests/stress/concurrency_mock_zsh.sh"
 
 printf '4\n' > /sys/module/gpioctl_mock_zsh/parameters/busy_offset
 if fault_output=$("$cli" --json --config "$config" \

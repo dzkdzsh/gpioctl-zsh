@@ -16,10 +16,12 @@ LAYOUT_TEST := $(BUILD_DIR)/uapi_layout_zsh
 EVENT_EPOLL_TEST := $(BUILD_DIR)/event_epoll_zsh
 POLICY_PROBE_TEST := $(BUILD_DIR)/policy_probe_zsh
 LOGIC_TEST := $(BUILD_DIR)/logic_zsh
+UAPI_INVALID_TEST := $(BUILD_DIR)/uapi_invalid_zsh
 
 .PHONY: all clean check
 
-all: $(CLI) $(LAYOUT_TEST) $(EVENT_EPOLL_TEST) $(POLICY_PROBE_TEST) $(LOGIC_TEST)
+all: $(CLI) $(LAYOUT_TEST) $(EVENT_EPOLL_TEST) $(POLICY_PROBE_TEST) \
+	$(LOGIC_TEST) $(UAPI_INVALID_TEST)
 
 $(BUILD_DIR):
 	mkdir -p $@
@@ -46,6 +48,9 @@ $(POLICY_PROBE_TEST): tests/policy_probe_zsh.c $(LIB_STATIC) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
 
 $(LOGIC_TEST): tests/logic_zsh.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+$(UAPI_INVALID_TEST): tests/uapi_invalid_zsh.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 check: all
