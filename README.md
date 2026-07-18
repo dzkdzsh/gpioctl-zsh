@@ -98,10 +98,19 @@ printf 'acquire GPIO1_11 out 0\nvalue GPIO1_11 1\nrelease GPIO1_11\n' |
 gpioctl_zsh shell
 gpioctl_zsh --json info GPIO1_11
 gpioctl_zsh --dry-run blink GPIO1_11 3 1000 1000
+gpioctl_zsh --timeout 5000 --strict run demo.gpioctl
 ```
 
 脚本语法刻意保持确定和简单：空白分隔 token，`#` 开始注释；循环和复杂条件
 交给 Shell 或 Python。`--strict` 在首个失败处停止并返回非零退出码。
+`--timeout MS` 是从进程启动起计算的单调时钟总预算，约束单命令、整个脚本和
+交互会话，而不是为每条子命令重新计时；预算耗尽返回 `ETIMEDOUT`。单次时长、
+总重复时长和总预算上限均为 24 小时，重复次数上限为 100000，避免整数溢出及
+误输入导致的无限占用。`--dry-run` 只验证并输出计划，不等待也不访问设备。
+
+`--json` 使用 JSON Lines：标准输出与标准错误的每个非空行都是独立、完整且含
+`ok` 字段的 JSON 对象，适合逐行流式解析。对象中的路径、别名和错误文本均按
+JSON 规则转义；脚本错误同时给出来源和行号。JSON 交互模式不会输出人类提示符。
 
 同一控制器的多线配置可写成事务块：
 

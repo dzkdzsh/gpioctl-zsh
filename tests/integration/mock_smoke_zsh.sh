@@ -28,6 +28,26 @@ cleanup_zsh()
 		"$project_dir/scripts/load_zsh.sh" >/dev/null 2>&1 || true
 	fi
 }
+
+wait_for_active_leases_zsh()
+{
+	expected=$1
+	monitored_pid=${2:-}
+	i=0
+	while [ "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/active_leases)" -ne "$expected" ]; do
+		if [ -n "$monitored_pid" ] && ! kill -0 "$monitored_pid" 2>/dev/null; then
+			wait "$monitored_pid" || true
+			echo "background GPIO client exited before becoming ready" >&2
+			exit 1
+		fi
+		i=$((i + 1))
+		if [ "$i" -ge 50 ]; then
+			echo "GPIO client did not reach active_leases=$expected" >&2
+			exit 1
+		fi
+		sleep 0.1
+	done
+}
 trap cleanup_zsh EXIT HUP INT TERM
 
 test -x "$cli"
@@ -44,6 +64,7 @@ test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/allowlisted_lines)" -eq 14
 test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/output_lines)" -eq 14
 test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/reserved_lines)" -eq 1
 "$project_dir/build/userspace/policy_probe_zsh" /dev/gpio0_zsh
+python3 "$project_dir/tests/integration/json_cli_zsh.py" "$cli" "$config"
 runuser -u zsh -- "$cli" --config "$config" get /dev/gpio0_zsh:10 \
 	>/dev/null
 if runuser -u zsh -- "$cli" --config "$config" get /dev/gpio0_zsh:14 \
@@ -130,26 +151,32 @@ printf '%s\n' \
 	'release /dev/gpio0_zsh:3' |
 	"$cli" --strict --config "$config" run - >/dev/null &
 holder_pid=$!
-sleep 1
+wait_for_active_leases_zsh 1 "$holder_pid"
 if "$cli" --config "$config" set /dev/gpio0_zsh:3 1; then
 	echo "exclusive lease conflict unexpectedly succeeded" >&2
 	exit 1
 fi
-wait "$holder_pid"
+if ! wait "$holder_pid"; then
+	echo "lease holder failed" >&2
+	exit 1
+fi
 holder_pid=
-"$cli" --config "$config" stats /dev/gpio0_zsh |
-	grep -q 'active_leases=0'
+wait_for_active_leases_zsh 0
 
 event_log=$(mktemp)
 "$cli" --config "$config" watch /dev/gpio0_zsh:5 both 10000 3 \
 	>"$event_log" &
 holder_pid=$!
-sleep 1
+wait_for_active_leases_zsh 1 "$holder_pid"
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
-wait "$holder_pid"
+if ! wait "$holder_pid"; then
+	echo "edge watcher failed" >&2
+	exit 1
+fi
 holder_pid=
+wait_for_active_leases_zsh 0
 test "$(grep -c '^event ' "$event_log")" -eq 3
 grep -q 'sequence=1 ' "$event_log"
 grep -q 'sequence=3 ' "$event_log"
@@ -158,14 +185,18 @@ grep -q 'sequence=3 ' "$event_log"
 "$cli" --json --config "$config" watch /dev/gpio0_zsh:5 both \
 	10000 2 500000 >"$event_log" &
 holder_pid=$!
-sleep 1
+wait_for_active_leases_zsh 1 "$holder_pid"
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
 sleep 0.6
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
-wait "$holder_pid"
+if ! wait "$holder_pid"; then
+	echo "debounced watcher failed" >&2
+	exit 1
+fi
 holder_pid=
+wait_for_active_leases_zsh 0
 test "$(grep -c '\"type\":\"event\"' "$event_log")" -eq 2
 grep -q '\"sequence\":1' "$event_log"
 grep -q '\"sequence\":2' "$event_log"
