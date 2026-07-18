@@ -10,6 +10,9 @@
 #define PHYTIUM_IOPAD_FUNC_MASK_ZSH GENMASK(2, 0)
 #define PHYTIUM_IOPAD_DRIVE_MASK_ZSH GENMASK(7, 4)
 #define PHYTIUM_IOPAD_BIAS_MASK_ZSH GENMASK(9, 8)
+#define PHYTIUM_IOPAD_CONTROL_MASK_ZSH \
+	(PHYTIUM_IOPAD_FUNC_MASK_ZSH | PHYTIUM_IOPAD_DRIVE_MASK_ZSH | \
+	 PHYTIUM_IOPAD_BIAS_MASK_ZSH)
 
 struct phytium_pad_zsh {
 	u16 register_offset;
@@ -237,6 +240,74 @@ static int phytium_iopad_configure_zsh(
 	return ret;
 }
 
+static int phytium_iopad_lease_prepare_zsh(
+	void *priv, const char *hardware_key, unsigned int offset,
+	u64 *saved_state)
+{
+	struct phytium_iopad_zsh *iopad = priv;
+	const struct phytium_pad_zsh *pad;
+	void __iomem *reg;
+	unsigned long irq_flags;
+	u32 old_value, new_value, readback;
+	int controller, ret = 0;
+
+	if (!saved_state)
+		return -EINVAL;
+	controller = phytium_controller_index_zsh(hardware_key);
+	if (controller < 0 || offset >= 16)
+		return -EOPNOTSUPP;
+	pad = &phytium_pads_zsh[controller][offset];
+	reg = iopad->base + pad->register_offset;
+
+	spin_lock_irqsave(&iopad->lock, irq_flags);
+	old_value = readl(reg);
+	*saved_state = old_value & PHYTIUM_IOPAD_CONTROL_MASK_ZSH;
+	new_value = (old_value & ~PHYTIUM_IOPAD_FUNC_MASK_ZSH) |
+		pad->gpio_function;
+	writel(new_value, reg);
+	readback = readl(reg);
+	if ((readback & PHYTIUM_IOPAD_FUNC_MASK_ZSH) != pad->gpio_function) {
+		writel(old_value, reg);
+		readl(reg);
+		ret = -EIO;
+	}
+	spin_unlock_irqrestore(&iopad->lock, irq_flags);
+	return ret;
+}
+
+static int phytium_iopad_lease_restore_zsh(
+	void *priv, const char *hardware_key, unsigned int offset,
+	u64 saved_state)
+{
+	struct phytium_iopad_zsh *iopad = priv;
+	const struct phytium_pad_zsh *pad;
+	void __iomem *reg;
+	unsigned long irq_flags;
+	u32 old_value, new_value, readback, saved = (u32)saved_state;
+	int controller, ret = 0;
+
+	if (saved_state & ~(u64)PHYTIUM_IOPAD_CONTROL_MASK_ZSH)
+		return -EINVAL;
+	controller = phytium_controller_index_zsh(hardware_key);
+	if (controller < 0 || offset >= 16)
+		return -EOPNOTSUPP;
+	pad = &phytium_pads_zsh[controller][offset];
+	reg = iopad->base + pad->register_offset;
+
+	spin_lock_irqsave(&iopad->lock, irq_flags);
+	old_value = readl(reg);
+	new_value = (old_value & ~PHYTIUM_IOPAD_CONTROL_MASK_ZSH) | saved;
+	writel(new_value, reg);
+	readback = readl(reg);
+	if ((readback & PHYTIUM_IOPAD_CONTROL_MASK_ZSH) != saved) {
+		writel(old_value, reg);
+		readl(reg);
+		ret = -EIO;
+	}
+	spin_unlock_irqrestore(&iopad->lock, irq_flags);
+	return ret;
+}
+
 static const struct gpioctl_iopad_ops_zsh phytium_iopad_ops_zsh = {
 	.abi_version = GPIOCTL_ZSH_HAL_ABI_VERSION,
 	.struct_size = sizeof(phytium_iopad_ops_zsh),
@@ -244,6 +315,8 @@ static const struct gpioctl_iopad_ops_zsh phytium_iopad_ops_zsh = {
 	.get_caps = phytium_iopad_get_caps_zsh,
 	.get_config = phytium_iopad_get_config_zsh,
 	.configure = phytium_iopad_configure_zsh,
+	.lease_prepare = phytium_iopad_lease_prepare_zsh,
+	.lease_restore = phytium_iopad_lease_restore_zsh,
 };
 
 static int phytium_iopad_probe_zsh(struct platform_device *pdev)

@@ -19,6 +19,9 @@ struct gpioctl_mock_line_zsh {
 	u32 bias;
 	u32 drive_level;
 	u32 mux_state;
+	u32 saved_bias;
+	u32 saved_drive_level;
+	u32 saved_mux_state;
 	unsigned int irq;
 };
 
@@ -32,8 +35,24 @@ struct gpioctl_mock_zsh {
 
 static struct gpioctl_mock_zsh gpioctl_mock_zsh;
 static int fail_offset_zsh = -1;
+static int busy_offset_zsh = -1;
+static int timeout_offset_zsh = -1;
+static int operation_fail_offset_zsh = -1;
+static int readback_error_offset_zsh = -1;
 module_param_named(fail_offset, fail_offset_zsh, int, 0644);
 MODULE_PARM_DESC(fail_offset, "Mock line offset that returns -EIO, or -1");
+module_param_named(busy_offset, busy_offset_zsh, int, 0644);
+MODULE_PARM_DESC(busy_offset,
+		 "Mock request offset that returns -EBUSY, or -1");
+module_param_named(timeout_offset, timeout_offset_zsh, int, 0644);
+MODULE_PARM_DESC(timeout_offset,
+		 "Mock line offset whose HAL operations return -ETIMEDOUT, or -1");
+module_param_named(operation_fail_offset, operation_fail_offset_zsh, int, 0644);
+MODULE_PARM_DESC(operation_fail_offset,
+		 "Mock line offset whose next post-request operation returns -EIO, or -1");
+module_param_named(readback_error_offset, readback_error_offset_zsh, int, 0644);
+MODULE_PARM_DESC(readback_error_offset,
+		 "Mock line offset whose value readback is inverted, or -1");
 
 static void gpioctl_mock_irq_mask_zsh(struct irq_data *data)
 {
@@ -105,9 +124,18 @@ module_param_cb(inject_offset, &gpioctl_mock_inject_ops_zsh, NULL, 0200);
 MODULE_PARM_DESC(inject_offset,
 		 "Toggle a leased input line and emit its simulated IRQ");
 
-static int gpioctl_mock_maybe_fail_zsh(struct gpioctl_mock_line_zsh *line)
+static int gpioctl_mock_maybe_fail_zsh(struct gpioctl_mock_line_zsh *line,
+				       bool request)
 {
-	return line->offset == fail_offset_zsh ? -EIO : 0;
+	if (line->offset == READ_ONCE(timeout_offset_zsh))
+		return -ETIMEDOUT;
+	if (request && line->offset == READ_ONCE(busy_offset_zsh))
+		return -EBUSY;
+	if (!request &&
+	    cmpxchg(&operation_fail_offset_zsh, (int)line->offset, -1) ==
+		(int)line->offset)
+		return -EIO;
+	return line->offset == READ_ONCE(fail_offset_zsh) ? -EIO : 0;
 }
 
 static int gpioctl_mock_request_zsh(void *priv, unsigned int offset,
@@ -123,11 +151,15 @@ static int gpioctl_mock_request_zsh(void *priv, unsigned int offset,
 	mutex_lock(&mock->lock);
 	if (line->requested)
 		ret = -EBUSY;
-	else if (gpioctl_mock_maybe_fail_zsh(line))
-		ret = -EIO;
 	else {
-		line->requested = true;
-		*line_priv = line;
+		ret = gpioctl_mock_maybe_fail_zsh(line, true);
+		if (!ret) {
+			line->saved_bias = line->bias;
+			line->saved_drive_level = line->drive_level;
+			line->saved_mux_state = line->mux_state;
+			line->requested = true;
+			*line_priv = line;
+		}
 	}
 	mutex_unlock(&mock->lock);
 	return ret;
@@ -142,7 +174,9 @@ static void gpioctl_mock_release_zsh(void *priv, void *line_priv)
 	line->requested = false;
 	line->output = false;
 	line->value = 0;
-	line->bias = GPIOCTL_ZSH_BIAS_DISABLE;
+	line->bias = line->saved_bias;
+	line->drive_level = line->saved_drive_level;
+	line->mux_state = line->saved_mux_state;
 	mutex_unlock(&mock->lock);
 }
 
@@ -153,7 +187,7 @@ static int gpioctl_mock_direction_input_zsh(void *priv, void *line_priv)
 	int ret;
 
 	mutex_lock(&mock->lock);
-	ret = gpioctl_mock_maybe_fail_zsh(line);
+	ret = gpioctl_mock_maybe_fail_zsh(line, false);
 	if (!ret)
 		line->output = false;
 	mutex_unlock(&mock->lock);
@@ -168,7 +202,7 @@ static int gpioctl_mock_direction_output_zsh(void *priv, void *line_priv,
 	int ret;
 
 	mutex_lock(&mock->lock);
-	ret = gpioctl_mock_maybe_fail_zsh(line);
+	ret = gpioctl_mock_maybe_fail_zsh(line, false);
 	if (!ret) {
 		line->value = !!value;
 		line->output = true;
@@ -184,9 +218,12 @@ static int gpioctl_mock_get_value_zsh(void *priv, void *line_priv)
 	int ret;
 
 	mutex_lock(&mock->lock);
-	ret = gpioctl_mock_maybe_fail_zsh(line);
-	if (!ret)
+	ret = gpioctl_mock_maybe_fail_zsh(line, false);
+	if (!ret) {
 		ret = line->value;
+		if (line->offset == READ_ONCE(readback_error_offset_zsh))
+			ret = !ret;
+	}
 	mutex_unlock(&mock->lock);
 	return ret;
 }
@@ -198,7 +235,7 @@ static int gpioctl_mock_set_value_zsh(void *priv, void *line_priv, int value)
 	int ret;
 
 	mutex_lock(&mock->lock);
-	ret = gpioctl_mock_maybe_fail_zsh(line);
+	ret = gpioctl_mock_maybe_fail_zsh(line, false);
 	if (!ret && !line->output)
 		ret = -EPERM;
 	if (!ret)
@@ -215,7 +252,7 @@ static int gpioctl_mock_set_bias_zsh(void *priv, void *line_priv,
 	int ret;
 
 	mutex_lock(&mock->lock);
-	ret = gpioctl_mock_maybe_fail_zsh(line);
+	ret = gpioctl_mock_maybe_fail_zsh(line, false);
 	if (!ret)
 		line->bias = bias;
 	mutex_unlock(&mock->lock);
@@ -225,7 +262,7 @@ static int gpioctl_mock_set_bias_zsh(void *priv, void *line_priv,
 static int gpioctl_mock_set_debounce_zsh(void *priv, void *line_priv,
 					 u32 debounce_us)
 {
-	return gpioctl_mock_maybe_fail_zsh(line_priv);
+	return gpioctl_mock_maybe_fail_zsh(line_priv, false);
 }
 
 static int gpioctl_mock_to_irq_zsh(void *priv, void *line_priv)
@@ -259,7 +296,7 @@ static int gpioctl_mock_get_iopad_zsh(
 		return -EINVAL;
 	line = &mock->lines[offset];
 	mutex_lock(&mock->lock);
-	ret = gpioctl_mock_maybe_fail_zsh(line);
+	ret = gpioctl_mock_maybe_fail_zsh(line, false);
 	if (!ret) {
 		config->flags = GPIOCTL_ZSH_IOPAD_APPLY_BIAS |
 			GPIOCTL_ZSH_IOPAD_APPLY_DRIVE |
@@ -281,7 +318,7 @@ static int gpioctl_mock_set_iopad_zsh(
 	int ret;
 
 	mutex_lock(&mock->lock);
-	ret = gpioctl_mock_maybe_fail_zsh(line);
+	ret = gpioctl_mock_maybe_fail_zsh(line, false);
 	if (!ret && (config->flags & GPIOCTL_ZSH_IOPAD_APPLY_BIAS))
 		line->bias = config->bias;
 	if (!ret && (config->flags & GPIOCTL_ZSH_IOPAD_APPLY_DRIVE))

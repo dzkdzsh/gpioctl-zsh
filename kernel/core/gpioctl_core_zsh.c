@@ -25,7 +25,9 @@ struct gpioctl_session_zsh;
 
 struct gpioctl_line_state_zsh {
 	struct gpioctl_session_zsh *session;
+	struct gpioctl_iopad_provider_zsh *iopad_provider;
 	void *hal_line;
+	u64 iopad_saved_state;
 	unsigned int offset;
 	int irq;
 	u32 edge;
@@ -168,6 +170,52 @@ static void gpioctl_put_iopad_zsh(struct gpioctl_iopad_provider_zsh *provider)
 	}
 }
 
+static int gpioctl_prepare_iopad_zsh(
+	struct gpioctl_controller_zsh *controller,
+	struct gpioctl_line_state_zsh *line)
+{
+	struct gpioctl_iopad_provider_zsh *provider;
+	int ret;
+
+	provider = gpioctl_get_iopad_zsh();
+	if (!provider)
+		return 0;
+	if (!provider->desc.ops->lease_prepare ||
+	    !provider->desc.ops->supports(provider->desc.priv,
+			controller->backend.hardware_key, line->offset)) {
+		gpioctl_put_iopad_zsh(provider);
+		return 0;
+	}
+	ret = provider->desc.ops->lease_prepare(provider->desc.priv,
+		controller->backend.hardware_key, line->offset,
+		&line->iopad_saved_state);
+	if (ret) {
+		gpioctl_put_iopad_zsh(provider);
+		return ret;
+	}
+	/* Keep the provider and its module pinned until safe lease release. */
+	line->iopad_provider = provider;
+	return 0;
+}
+
+static int gpioctl_restore_iopad_zsh(
+	struct gpioctl_controller_zsh *controller,
+	struct gpioctl_line_state_zsh *line)
+{
+	struct gpioctl_iopad_provider_zsh *provider = line->iopad_provider;
+	int ret = 0;
+
+	if (!provider)
+		return 0;
+	ret = provider->desc.ops->lease_restore(provider->desc.priv,
+		controller->backend.hardware_key, line->offset,
+		line->iopad_saved_state);
+	line->iopad_provider = NULL;
+	line->iopad_saved_state = 0;
+	gpioctl_put_iopad_zsh(provider);
+	return ret;
+}
+
 static int gpioctl_read_iopad_zsh(struct gpioctl_controller_zsh *controller,
 				  unsigned int offset,
 				  struct gpioctl_zsh_iopad_config *config)
@@ -236,6 +284,18 @@ static int gpioctl_logical_value_zsh(const struct gpioctl_line_state_zsh *line,
 				     int physical)
 {
 	return (!!physical) ^ line->active_low;
+}
+
+static int gpioctl_verify_value_zsh(
+	struct gpioctl_controller_zsh *controller,
+	struct gpioctl_line_state_zsh *line, int logical)
+{
+	int physical = controller->backend.ops->get_value(
+		controller->backend.priv, line->hal_line);
+
+	if (physical < 0)
+		return physical;
+	return gpioctl_logical_value_zsh(line, physical) == !!logical ? 0 : -EIO;
 }
 
 static struct gpioctl_line_state_zsh *
@@ -381,9 +441,13 @@ static int gpioctl_release_line_locked_zsh(
 {
 	struct gpioctl_controller_zsh *controller = session->controller;
 	int ret;
+	int restore_ret;
 
 	gpioctl_disable_event_zsh(line);
 	ret = gpioctl_apply_safe_state_zsh(controller, line);
+	restore_ret = gpioctl_restore_iopad_zsh(controller, line);
+	if (!ret)
+		ret = restore_ret;
 	controller->backend.ops->release(controller->backend.priv, line->hal_line);
 	clear_bit(line->offset, controller->leased);
 	atomic_dec(&controller->active_leases);
@@ -563,6 +627,13 @@ static int gpioctl_lease_request_zsh(struct gpioctl_session_zsh *session,
 						       &line->hal_line);
 		if (ret)
 			goto rollback;
+		ret = gpioctl_prepare_iopad_zsh(controller, line);
+		if (ret) {
+			controller->backend.ops->release(controller->backend.priv,
+						 line->hal_line);
+			line->hal_line = NULL;
+			goto rollback;
+		}
 		line->leased = true;
 		line->output = false;
 		line->active_low = false;
@@ -584,6 +655,10 @@ rollback:
 		if (gpioctl_apply_safe_state_zsh(controller, line))
 			pr_err_ratelimited(GPIOCTL_ZSH_NAME
 				": lease rollback safe-state failed controller=%u line=%u\n",
+				controller->id, line->offset);
+		if (gpioctl_restore_iopad_zsh(controller, line))
+			pr_err_ratelimited(GPIOCTL_ZSH_NAME
+				": lease rollback IOPAD restore failed controller=%u line=%u\n",
 				controller->id, line->offset);
 		controller->backend.ops->release(controller->backend.priv,
 						 line->hal_line);
@@ -676,6 +751,8 @@ static int gpioctl_config_line_locked_zsh(
 		if (!ret) {
 			line->output = true;
 			line->logical_value = !!config->value;
+			ret = gpioctl_verify_value_zsh(controller, line,
+						 config->value);
 		}
 	} else {
 		ret = controller->backend.ops->direction_input(
@@ -813,6 +890,8 @@ static int gpioctl_values_set_zsh(struct gpioctl_session_zsh *session,
 		ret = controller->backend.ops->set_value(
 			controller->backend.priv, line->hal_line,
 			gpioctl_physical_value_zsh(line, logical));
+		if (!ret)
+			ret = gpioctl_verify_value_zsh(controller, line, logical);
 		if (ret)
 			goto rollback;
 		line->logical_value = logical;
@@ -917,8 +996,11 @@ static int gpioctl_batch_exec_zsh(struct gpioctl_session_zsh *session,
 				controller->backend.priv, line->hal_line,
 				gpioctl_physical_value_zsh(line,
 							   batch.ops[i].arg0));
-			if (!ret)
+			if (!ret) {
 				line->logical_value = batch.ops[i].arg0;
+				ret = gpioctl_verify_value_zsh(controller, line,
+							       batch.ops[i].arg0);
+			}
 		} else {
 			struct gpioctl_zsh_line_config config = {
 				.abi_version = GPIOCTL_ZSH_ABI_VERSION,
@@ -1552,7 +1634,8 @@ int gpioctl_register_iopad_provider_zsh(
 	    desc->ops->struct_size != sizeof(*desc->ops) ||
 	    !desc->ops->supports || !desc->ops->get_caps ||
 	    !desc->ops->get_config ||
-	    !desc->ops->configure)
+	    !desc->ops->configure ||
+	    (!!desc->ops->lease_prepare != !!desc->ops->lease_restore))
 		return -EINVAL;
 	provider = kzalloc(sizeof(*provider), GFP_KERNEL);
 	if (!provider)

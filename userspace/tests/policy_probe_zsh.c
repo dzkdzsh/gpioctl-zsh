@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 		fail_zsh("input-only release");
 	if (gpioctl_zsh_iopad_get_config(handle, offset, &iopad))
 		fail_zsh("released IOPAD query");
-	expect_iopad_zsh(&iopad, GPIOCTL_ZSH_BIAS_DISABLE, 7,
+	expect_iopad_zsh(&iopad, GPIOCTL_ZSH_BIAS_DISABLE, 0,
 			  GPIOCTL_ZSH_MUX_GPIO, "released IOPAD state");
 
 	offset = 14;

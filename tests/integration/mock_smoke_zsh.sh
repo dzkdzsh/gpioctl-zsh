@@ -65,6 +65,49 @@ test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/output_lines)" -eq 14
 test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/reserved_lines)" -eq 1
 "$project_dir/build/userspace/policy_probe_zsh" /dev/gpio0_zsh
 python3 "$project_dir/tests/integration/json_cli_zsh.py" "$cli" "$config"
+
+printf '4\n' > /sys/module/gpioctl_mock_zsh/parameters/busy_offset
+if fault_output=$("$cli" --json --config "$config" \
+	set /dev/gpio0_zsh:4 1 2>&1); then
+	echo "busy-injected request unexpectedly succeeded" >&2
+	exit 1
+fi
+printf '%s\n' "$fault_output" | grep -q '"errno":16'
+printf '%s\n' '-1' > /sys/module/gpioctl_mock_zsh/parameters/busy_offset
+
+printf '4\n' > /sys/module/gpioctl_mock_zsh/parameters/timeout_offset
+if fault_output=$("$cli" --json --config "$config" \
+	set /dev/gpio0_zsh:4 1 2>&1); then
+	echo "timeout-injected request unexpectedly succeeded" >&2
+	exit 1
+fi
+printf '%s\n' "$fault_output" | grep -q '"errno":110'
+printf '%s\n' '-1' > /sys/module/gpioctl_mock_zsh/parameters/timeout_offset
+
+printf '2\n' > \
+	/sys/module/gpioctl_mock_zsh/parameters/operation_fail_offset
+if fault_output=$("$cli" --json --config "$config" \
+	batch-set /dev/gpio0_zsh 0 1=1 2=1 2>&1); then
+	echo "partial-commit injection unexpectedly succeeded" >&2
+	exit 1
+fi
+printf '%s\n' "$fault_output" | grep -q '"errno":5'
+printf '%s\n' '-1' > \
+	/sys/module/gpioctl_mock_zsh/parameters/operation_fail_offset
+
+printf '8\n' > \
+	/sys/module/gpioctl_mock_zsh/parameters/readback_error_offset
+if fault_output=$("$cli" --json --config "$config" \
+	batch-set /dev/gpio0_zsh 0 7=1 8=1 2>&1); then
+	echo "corrupt-readback injection unexpectedly succeeded" >&2
+	exit 1
+fi
+printf '%s\n' "$fault_output" | grep -q '"errno":5'
+printf '%s\n' '-1' > \
+	/sys/module/gpioctl_mock_zsh/parameters/readback_error_offset
+test "$("$cli" --config "$config" get /dev/gpio0_zsh:7)" = \
+	'/dev/gpio0_zsh:7=0'
+
 runuser -u zsh -- "$cli" --config "$config" get /dev/gpio0_zsh:10 \
 	>/dev/null
 if runuser -u zsh -- "$cli" --config "$config" get /dev/gpio0_zsh:14 \
@@ -73,7 +116,7 @@ if runuser -u zsh -- "$cli" --config "$config" get /dev/gpio0_zsh:14 \
 	exit 1
 fi
 "$cli" --json --config "$config" iopad-get /dev/gpio0_zsh:10 |
-	grep -q '"bias_name":"none".*"drive":7.*"mux_name":"gpio"'
+	grep -q '"bias_name":"none".*"drive":0.*"mux_name":"gpio"'
 if runuser -u zsh -- "$cli" --config "$config" \
 	iopad /dev/gpio0_zsh:10 drive=1 >/dev/null 2>&1; then
 	echo "unprivileged IOPAD configuration unexpectedly succeeded" >&2
@@ -169,7 +212,9 @@ event_log=$(mktemp)
 holder_pid=$!
 wait_for_active_leases_zsh 1 "$holder_pid"
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+sleep 0.02
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+sleep 0.02
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
 if ! wait "$holder_pid"; then
 	echo "edge watcher failed" >&2
@@ -187,7 +232,9 @@ grep -q 'sequence=3 ' "$event_log"
 holder_pid=$!
 wait_for_active_leases_zsh 1 "$holder_pid"
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+sleep 0.02
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
+sleep 0.02
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
 sleep 0.6
 printf '5\n' > /sys/module/gpioctl_mock_zsh/parameters/inject_offset
