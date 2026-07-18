@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+project_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 kernel_release=$(uname -r)
 config=/boot/config-$kernel_release
 

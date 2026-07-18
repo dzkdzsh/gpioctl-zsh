@@ -1,0 +1,22 @@
+make: Entering directory '/usr/src/linux-headers-6.6.63-phytium-embedded-v3.2'
+warning: the compiler differs from the one used to build the kernel
+  The kernel was built by: aarch64-none-linux-gnu-gcc (Arm GNU Toolchain 12.2.Rel1 (Build arm-12.24)) 12.2.1 20221205
+  You are using:           gcc (Debian 12.2.0-14+deb12u1) 12.2.0
+  CC [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.o
+  LD [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_core_zsh.o
+  CC [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.o
+  LD [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_backend_gpiolib_zsh.o
+  CC [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.o
+  LD [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_mock_zsh.o
+  CC [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.o
+  LD [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_backend_phytium_zsh.o
+  MODPOST /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/Module.symvers
+  CC [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_core_zsh.mod.o
+  LD [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_core_zsh.ko
+  CC [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_backend_gpiolib_zsh.mod.o
+  LD [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_backend_gpiolib_zsh.ko
+  CC [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_mock_zsh.mod.o
+  LD [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_mock_zsh.ko
+  CC [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_backend_phytium_zsh.mod.o
+  LD [M]  /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/gpioctl_backend_phytium_zsh.ko
+make: Leaving directory '/usr/src/linux-headers-6.6.63-phytium-embedded-v3.2'

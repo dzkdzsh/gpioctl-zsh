@@ -1,0 +1,66 @@
+commit=f8608dc
+2026-07-18T13:12:10+08:00
+Linux phytiumpi 6.6.63-phytium-embedded-v3.2 #1 SMP PREEMPT Wed Jun 25 11:38:56 CST 2025 aarch64 GNU/Linux
+62946b9dafe1013ef44813d3f2484721dbcc1bb5fe0647f1c948a55624c8c7f0  build/kernel/gpioctl_core_zsh.ko
+63c93591525c5059743197b06916601dcb94bf2f215e7ff361b4a8c93c85cfdb  build/kernel/gpioctl_mock_zsh.ko
+4125babf72f8ea27d65c453cb0424f33ef7f7c9a66c92caaba93c5fcfc4b6c4d  build/userspace/gpioctl_zsh
+stress elapsed=60s active=1 operations=114240 events=2337 drops=0
+stress elapsed=120s active=1 operations=230929 events=4711 drops=0
+stress elapsed=180s active=2 operations=345299 events=7046 drops=0
+stress elapsed=241s active=2 operations=461771 events=9422 drops=0
+stress elapsed=300s active=2 operations=576378 events=11759 drops=0
+stress elapsed=360s active=2 operations=690607 events=14080 drops=0
+stress elapsed=420s active=2 operations=806967 events=16459 drops=0
+stress elapsed=480s active=2 operations=921572 events=18799 drops=0
+stress elapsed=540s active=2 operations=1037850 events=21174 drops=0
+stress elapsed=600s active=2 operations=1152595 events=23513 drops=0
+stress elapsed=660s active=1 operations=1269131 events=25891 drops=0
+stress elapsed=720s active=1 operations=1383780 events=28228 drops=0
+stress elapsed=780s active=2 operations=1500071 events=30604 drops=0
+stress elapsed=840s active=2 operations=1615011 events=32944 drops=0
+stress elapsed=900s active=0 operations=1729509 events=35280 drops=0
+stress elapsed=960s active=2 operations=1846023 events=37656 drops=0
+stress elapsed=1020s active=1 operations=1961143 events=39992 drops=0
+stress elapsed=1080s active=1 operations=2077660 events=42369 drops=0
+stress elapsed=1140s active=2 operations=2192049 events=44704 drops=0
+stress elapsed=1200s active=2 operations=2308450 events=47080 drops=0
+stress elapsed=1260s active=2 operations=2422895 events=49415 drops=0
+stress elapsed=1320s active=2 operations=2537005 events=51736 drops=0
+stress elapsed=1380s active=1 operations=2653290 events=54115 drops=0
+stress elapsed=1440s active=1 operations=2767725 events=56451 drops=0
+stress elapsed=1500s active=2 operations=2884536 events=58830 drops=0
+stress elapsed=1560s active=2 operations=2999101 events=61167 drops=0
+stress elapsed=1620s active=2 operations=3115867 events=63546 drops=0
+stress elapsed=1680s active=1 operations=3230442 events=65887 drops=0
+stress elapsed=1740s active=2 operations=3347062 events=68264 drops=0
+stress elapsed=1800s active=2 operations=3461681 events=70603 drops=0
+stress elapsed=1860s active=2 operations=3576474 events=72944 drops=0
+stress elapsed=1920s active=2 operations=3692823 events=75321 drops=0
+stress elapsed=1980s active=1 operations=3807443 events=77660 drops=0
+stress elapsed=2040s active=4 operations=3923987 events=80041 drops=0
+stress elapsed=2100s active=1 operations=4038637 events=82381 drops=0
+stress elapsed=2160s active=2 operations=4154963 events=84760 drops=0
+stress elapsed=2220s active=2 operations=4269483 events=87100 drops=0
+stress elapsed=2280s active=2 operations=4384377 events=89439 drops=0
+stress elapsed=2340s active=1 operations=4500900 events=91818 drops=0
+stress elapsed=2400s active=1 operations=4615441 events=94157 drops=0
+stress elapsed=2460s active=2 operations=4732068 events=96532 drops=0
+stress elapsed=2520s active=2 operations=4846652 events=98873 drops=0
+stress elapsed=2580s active=2 operations=4963060 events=101252 drops=0
+stress elapsed=2640s active=2 operations=5077461 events=103592 drops=0
+stress elapsed=2700s active=2 operations=5191713 events=105931 drops=0
+stress elapsed=2760s active=2 operations=5308080 events=108308 drops=0
+stress elapsed=2820s active=2 operations=5422423 events=110646 drops=0
+stress elapsed=2880s active=1 operations=5538894 events=113022 drops=0
+stress elapsed=2940s active=1 operations=5653593 events=115361 drops=0
+stress elapsed=3000s active=2 operations=5770040 events=117740 drops=0
+stress elapsed=3060s active=1 operations=5884693 events=120080 drops=0
+stress elapsed=3120s active=2 operations=5999315 events=122419 drops=0
+stress elapsed=3180s active=2 operations=6116198 events=124800 drops=0
+stress elapsed=3240s active=2 operations=6231126 events=127140 drops=0
+stress elapsed=3300s active=2 operations=6347673 events=129519 drops=0
+stress elapsed=3360s active=2 operations=6462401 events=131859 drops=0
+stress elapsed=3420s active=2 operations=6578662 events=134236 drops=0
+stress elapsed=3480s active=1 operations=6693321 events=136576 drops=0
+stress elapsed=3540s active=2 operations=6807873 events=138914 drops=0
+mixed_mock_zsh.sh: PASS duration=3600s set=854330 batch=874079 get=858353 contend=515302+516238 event_rounds=7064

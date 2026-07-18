@@ -7,7 +7,7 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+project_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 kernel_release=${KERNEL_RELEASE:-$(uname -r)}
 module_dir="/lib/modules/$kernel_release/kernel/test/course_design_zsh"
 legacy_module_dir="/lib/modules/$kernel_release/extra/gpioctl_zsh"

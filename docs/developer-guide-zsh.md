@@ -73,3 +73,10 @@ sudo tests/integration/mock_smoke_zsh.sh
 删除已覆盖到既有设备节点的属性会明确报告内存泄漏风险，因此
 `scripts/unload_zsh.sh` 默认不删除 overlay；只有完整卸载使用显式
 `--remove-overlay`。生命周期/压力测试不得在循环中反复删除和重建该 overlay。
+
+## 发布分析入口
+
+静态分析统一使用 `make static-analysis`。脚本为 W=1、Sparse、Coccinelle、Smatch、
+checkpatch、GCC analyzer、Cppcheck、ShellCheck 分别保存原始输出与退出码；工具缺失
+只能记录 SKIP。发布前还应运行 `make audit` 检查板级硬编码、危险 raw 旁路、产品
+libgpiod 依赖、文档清单和残留租约。

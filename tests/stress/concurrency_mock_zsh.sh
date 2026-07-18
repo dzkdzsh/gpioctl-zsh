@@ -7,7 +7,7 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+project_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 cli=${GPIOCTL_ZSH_CLI:-$project_dir/build/userspace/gpioctl_zsh}
 config=${GPIOCTL_ZSH_CONFIG:-$project_dir/config/phytium-pi-v1.conf}
 iterations=${GPIOCTL_ZSH_ITERATIONS:-25}

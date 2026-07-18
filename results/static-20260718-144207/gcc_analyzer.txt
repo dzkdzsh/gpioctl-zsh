@@ -1,0 +1,24 @@
+make: Entering directory '/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace'
+rm -f -r /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build
+mkdir -p /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build
+cc -I../include -O2 -g -fanalyzer -c gpioctl_zsh/main.c -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/gpioctl_zsh_cli.o
+cc -I../include -O2 -g -fanalyzer -c libgpioctl_zsh/gpioctl_zsh.c -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/gpioctl_zsh_lib.o
+ar rcs /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/libgpioctl_zsh.a /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/gpioctl_zsh_lib.o
+cc -Wl,-z,relro,-z,now /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/gpioctl_zsh_cli.o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/libgpioctl_zsh.a -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/gpioctl_zsh
+cc -I../include -O2 -g -fanalyzer tests/uapi_layout_zsh.c -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/uapi_layout_zsh
+cc -I../include -O2 -g -fanalyzer tests/event_epoll_zsh.c /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/libgpioctl_zsh.a -Wl,-z,relro,-z,now -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/event_epoll_zsh
+cc -I../include -O2 -g -fanalyzer tests/policy_probe_zsh.c /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/libgpioctl_zsh.a -Wl,-z,relro,-z,now -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/policy_probe_zsh
+cc -I../include -O2 -g -fanalyzer tests/logic_zsh.c -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/logic_zsh
+cc -I../include -O2 -g -fanalyzer tests/uapi_invalid_zsh.c -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/uapi_invalid_zsh
+cc -I../include -O2 -g -fanalyzer tests/batch_rollback_zsh.c -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/batch_rollback_zsh
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/uapi_layout_zsh
+uapi_layout_zsh: PASS
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/logic_zsh
+logic_zsh: PASS
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/gpioctl_zsh --self-test
+gpioctl_zsh self-test: PASS
+cc -I../include -O2 -g -fanalyzer ../benchmarks/gpioctl_benchmark_zsh.c /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/libgpioctl_zsh.a -Wl,-z,relro,-z,now -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/gpioctl_benchmark_zsh
+cc -I../include -O2 -g -fanalyzer ../benchmarks/event_benchmark_zsh.c /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/libgpioctl_zsh.a -Wl,-z,relro,-z,now -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/event_benchmark_zsh
+cc -I../include -O2 -g -fanalyzer  ../benchmarks/libgpiod_baseline_zsh.c \
+	-Wl,-z,relro,-z,now -lgpiod  -o /home/zsh/zsh/course_design/home/zsh/zsh/course_design/build/results/static-20260718-144207/analyzer-build/libgpiod_baseline_zsh
+make: Leaving directory '/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace'

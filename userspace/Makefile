@@ -17,11 +17,17 @@ EVENT_EPOLL_TEST := $(BUILD_DIR)/event_epoll_zsh
 POLICY_PROBE_TEST := $(BUILD_DIR)/policy_probe_zsh
 LOGIC_TEST := $(BUILD_DIR)/logic_zsh
 UAPI_INVALID_TEST := $(BUILD_DIR)/uapi_invalid_zsh
+BATCH_ROLLBACK_TEST := $(BUILD_DIR)/batch_rollback_zsh
+BENCHMARK := $(BUILD_DIR)/gpioctl_benchmark_zsh
+LIBGPIOD_BASELINE := $(BUILD_DIR)/libgpiod_baseline_zsh
+EVENT_BENCHMARK := $(BUILD_DIR)/event_benchmark_zsh
+LIBGPIOD_CFLAGS ?= $(shell pkg-config --cflags libgpiod 2>/dev/null)
+LIBGPIOD_LIBS ?= $(shell pkg-config --libs libgpiod 2>/dev/null)
 
-.PHONY: all clean check
+.PHONY: all benchmark benchmark-libgpiod clean check
 
 all: $(CLI) $(LAYOUT_TEST) $(EVENT_EPOLL_TEST) $(POLICY_PROBE_TEST) \
-	$(LOGIC_TEST) $(UAPI_INVALID_TEST)
+	$(LOGIC_TEST) $(UAPI_INVALID_TEST) $(BATCH_ROLLBACK_TEST)
 
 $(BUILD_DIR):
 	mkdir -p $@
@@ -52,6 +58,23 @@ $(LOGIC_TEST): tests/logic_zsh.c | $(BUILD_DIR)
 
 $(UAPI_INVALID_TEST): tests/uapi_invalid_zsh.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+$(BATCH_ROLLBACK_TEST): tests/batch_rollback_zsh.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+$(BENCHMARK): ../benchmarks/gpioctl_benchmark_zsh.c $(LIB_STATIC) | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+
+$(EVENT_BENCHMARK): ../benchmarks/event_benchmark_zsh.c $(LIB_STATIC) | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+
+benchmark: $(BENCHMARK) $(EVENT_BENCHMARK)
+
+$(LIBGPIOD_BASELINE): ../benchmarks/libgpiod_baseline_zsh.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LIBGPIOD_CFLAGS) $< \
+		$(LDFLAGS) $(LIBGPIOD_LIBS) -o $@
+
+benchmark-libgpiod: $(LIBGPIOD_BASELINE)
 
 check: all
 	$(LAYOUT_TEST)

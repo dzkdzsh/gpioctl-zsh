@@ -1,0 +1,37 @@
+2026-07-18T14:42:07,058858556+08:00
+Linux phytiumpi 6.6.63-phytium-embedded-v3.2 #1 SMP PREEMPT Wed Jun 25 11:38:56 CST 2025 aarch64 GNU/Linux
+project=/home/zsh/zsh/course_design/home/zsh/zsh/course_design
+kdir=/lib/modules/6.6.63-phytium-embedded-v3.2/build
+
+[gcc]
+gcc (Debian 12.2.0-14+deb12u1) 12.2.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+[make]
+GNU Make 4.3
+Built for aarch64-unknown-linux-gnu
+Copyright (C) 1988-2020 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+
+[sparse]
+0.6.4
+
+[spatch]
+spatch version 1.1.1 compiled with OCaml version 4.13.1
+Flags passed to the configure script: --prefix=/usr --sysconfdir=/etc --libdir=/usr/lib --enable-ocaml --enable-python --with-python=python3 --enable-opt
+OCaml scripting support: yes
+Python scripting support: yes
+
+[smatch]
+0.6.4
+
+[shellcheck]
+ShellCheck - shell script analysis tool
+version: 0.9.0
+license: GNU General Public License, version 3
+website: https://www.shellcheck.net
+
+[cppcheck]
+Cppcheck 2.10

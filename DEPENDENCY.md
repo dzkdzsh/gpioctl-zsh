@@ -1,8 +1,11 @@
 # Dependency and originality statement
 
-This project is an independent implementation. It does not copy, compile,
-link, load, or call libgpiod. libgpiod may only be executed as an external
-black-box baseline by benchmark scripts.
+This project is an independent implementation. Production and default-build
+artifacts do not copy, compile, link, load, or call libgpiod. An optional,
+explicitly built benchmark-only executable links only libgpiod's public API so
+that both implementations can be measured in persistent processes without
+including process startup time. That executable is not installed and is never
+used by the product library, CLI, kernel modules, tests, or deployment scripts.
 
 Required build dependencies are:
 
@@ -14,4 +17,3 @@ Required build dependencies are:
 The kernel modules use public, exported Linux GPIO, pinctrl, character-device,
 IRQ, synchronization, and uaccess interfaces. The userspace component talks
 only to the original `gpioctl_zsh` UAPI defined in this repository.
-

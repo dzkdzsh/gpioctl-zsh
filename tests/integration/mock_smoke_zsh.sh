@@ -7,7 +7,7 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+project_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 cli=${GPIOCTL_ZSH_CLI:-$project_dir/build/userspace/gpioctl_zsh}
 config=${GPIOCTL_ZSH_CONFIG:-$project_dir/config/phytium-pi-v1.conf}
 holder_pid=
@@ -65,6 +65,7 @@ test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/output_lines)" -eq 14
 test "$(cat /sys/class/gpioctl_zsh/gpio0_zsh/reserved_lines)" -eq 1
 "$project_dir/build/userspace/policy_probe_zsh" /dev/gpio0_zsh
 "$project_dir/build/userspace/uapi_invalid_zsh" /dev/gpio0_zsh
+"$project_dir/build/userspace/batch_rollback_zsh" /dev/gpio0_zsh
 python3 "$project_dir/tests/integration/json_cli_zsh.py" "$cli" "$config"
 python3 "$project_dir/tests/fuzz/cli_parser_fuzz_zsh.py" "$cli" "$config"
 GPIOCTL_ZSH_CLI="$cli" GPIOCTL_ZSH_CONFIG="$config" \
@@ -97,6 +98,8 @@ if fault_output=$("$cli" --json --config "$config" \
 	exit 1
 fi
 printf '%s\n' "$fault_output" | grep -q '"errno":5'
+printf '%s\n' "$fault_output" |
+	grep -q '"failed_index":1,"rollback_error":0'
 printf '%s\n' '-1' > \
 	/sys/module/gpioctl_mock_zsh/parameters/operation_fail_offset
 

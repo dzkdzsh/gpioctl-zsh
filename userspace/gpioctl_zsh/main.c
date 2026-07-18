@@ -378,6 +378,35 @@ static void print_error_zsh(const struct cli_options_zsh *options,
 			subject ?: "", strerror(errno));
 }
 
+static void print_batch_error_zsh(const struct cli_options_zsh *options,
+				  const char *operation, const char *subject,
+				  const struct gpioctl_zsh_batch *batch)
+{
+	int saved_errno = errno;
+
+	error_reported_zsh = true;
+	if (options->json) {
+		fputs("{\"ok\":false,\"operation\":", stderr);
+		json_string_zsh(stderr, operation);
+		fputs(",\"subject\":", stderr);
+		json_string_zsh(stderr, subject);
+		fprintf(stderr,
+			",\"errno\":%d,\"error\":", saved_errno);
+		json_string_zsh(stderr, strerror(saved_errno));
+		fprintf(stderr,
+			",\"failed_index\":%" PRId32
+			",\"rollback_error\":%" PRId32 "}\n",
+			batch->failed_index, batch->rollback_error);
+	} else {
+		fprintf(stderr,
+			"%s %s failed: %s (failed_index=%" PRId32
+			", rollback_error=%" PRId32 ")\n",
+			operation, subject ?: "", strerror(saved_errno),
+			batch->failed_index, batch->rollback_error);
+	}
+	errno = saved_errno;
+}
+
 static int command_sleep_zsh(const struct cli_options_zsh *options,
 			     uint32_t milliseconds)
 {
@@ -1199,6 +1228,7 @@ static int command_batch_set_zsh(const struct cli_options_zsh *options,
 		.failed_index = -1,
 	};
 	uint32_t offsets[GPIOCTL_ZSH_MAX_BATCH_OPS];
+	bool batch_error_reported = false;
 	int i, ret = -1;
 
 	if (assignment_count <= 0 ||
@@ -1242,9 +1272,13 @@ static int command_batch_set_zsh(const struct cli_options_zsh *options,
 	}
 	handle = gpioctl_zsh_open(device);
 	if (!handle || gpioctl_zsh_lease(handle, offsets,
-					 (size_t)assignment_count, 0) ||
-	    gpioctl_zsh_batch(handle, &batch))
+					 (size_t)assignment_count, 0))
 		goto out;
+	if (gpioctl_zsh_batch(handle, &batch)) {
+		print_batch_error_zsh(options, "batch-set", device, &batch);
+		batch_error_reported = true;
+		goto out;
+	}
 	if (hold_ms && sleep_ms_zsh(options, hold_ms))
 		goto out;
 	if (options->json) {
@@ -1258,7 +1292,7 @@ static int command_batch_set_zsh(const struct cli_options_zsh *options,
 		       device, assignment_count, hold_ms);
 	ret = 0;
 out:
-	if (ret)
+	if (ret && !batch_error_reported)
 		print_error_zsh(options, "batch-set", device);
 	gpioctl_zsh_close(handle);
 	return ret;
@@ -1334,6 +1368,7 @@ static int command_transaction_commit_zsh(struct runtime_zsh *runtime,
 	struct gpioctl_zsh_handle *handle = NULL;
 	uint32_t offsets[GPIOCTL_ZSH_MAX_BATCH_OPS];
 	uint32_t count, i;
+	bool batch_error_reported = false;
 	int ret = -1;
 
 	if (!transaction->active || !transaction->batch.count ||
@@ -1346,9 +1381,15 @@ static int command_transaction_commit_zsh(struct runtime_zsh *runtime,
 		offsets[i] = transaction->batch.ops[i].offset;
 	if (!runtime->options.dry_run) {
 		handle = gpioctl_zsh_open(transaction->device);
-		if (!handle || gpioctl_zsh_lease(handle, offsets, count, 0) ||
-		    gpioctl_zsh_batch(handle, &transaction->batch))
+		if (!handle || gpioctl_zsh_lease(handle, offsets, count, 0))
 			goto out;
+		if (gpioctl_zsh_batch(handle, &transaction->batch)) {
+			print_batch_error_zsh(&runtime->options, "commit",
+					      transaction->device,
+					      &transaction->batch);
+			batch_error_reported = true;
+			goto out;
+		}
 	}
 	if (!runtime->options.dry_run && hold_ms &&
 	    sleep_ms_zsh(&runtime->options, hold_ms))
@@ -1366,7 +1407,7 @@ static int command_transaction_commit_zsh(struct runtime_zsh *runtime,
 		       runtime->options.dry_run ? " dry-run" : "");
 	ret = 0;
 out:
-	if (ret)
+	if (ret && !batch_error_reported)
 		print_error_zsh(&runtime->options, "commit", transaction->device);
 	gpioctl_zsh_close(handle);
 	memset(transaction, 0, sizeof(*transaction));

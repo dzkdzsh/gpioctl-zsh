@@ -1,0 +1,1081 @@
+---------------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c
+---------------------------------------------------------------------------------------------
+CHECK:UNCOMMENTED_DEFINITION: struct mutex definition without comment
+#29: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c:29:
++	struct mutex lock;
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#169: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c:169:
++	if (line->requested)
+[...]
++	else {
+[...]
+
+CHECK:BRACES: Unbalanced braces around else statement
+#171: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c:171:
++	else {
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#292: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c:292:
++static int gpioctl_mock_get_iopad_caps_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#305: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c:305:
++static int gpioctl_mock_get_iopad_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#329: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c:329:
++static int gpioctl_mock_set_iopad_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#393: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c:393:
++	gpioctl_mock_zsh.irq_domain = irq_domain_add_linear(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#409: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c:409:
++		gpioctl_mock_zsh.lines[i].irq = irq_create_mapping(
+
+total: 0 errors, 0 warnings, 8 checks, 451 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_mock/gpioctl_mock_zsh.c has style problems, please review.
+-----------------------------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c
+-----------------------------------------------------------------------------------------------------------
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '['
+#33: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c:33:
++static struct gpioctl_gpiolib_chip_zsh gpioctl_chips_zsh[
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#148: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c:148:
++static int gpioctl_gpiolib_get_iopad_caps_zsh(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#189: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c:189:
++		ret = of_property_read_u32_index(node,
++			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i, &offset);
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#193: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c:193:
++		ret = of_property_read_u32_index(node,
++			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i + 1,
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#198: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c:198:
++		ret = of_property_read_u32_index(node,
++			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i + 2,
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#203: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c:203:
++		ret = of_property_read_u32_index(node,
++			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i + 3,
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#208: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c:208:
++		ret = of_property_read_u32_index(node,
++			GPIOCTL_GPIOLIB_ZSH_POLICY_PROPERTY, i + 4,
+
+total: 0 errors, 0 warnings, 7 checks, 362 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_gpiolib/gpioctl_backend_gpiolib_zsh.c has style problems, please review.
+-------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c
+-------------------------------------------------------------------------------------
+CHECK:UNCOMMENTED_DEFINITION: struct mutex definition without comment
+#51: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:51:
++	struct mutex lock;
+
+CHECK:UNCOMMENTED_DEFINITION: struct mutex definition without comment
+#70: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:70:
++	struct mutex lock;
+
+CHECK:UNCOMMENTED_DEFINITION: spinlock_t definition without comment
+#72: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:72:
++	spinlock_t event_lock;
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#109: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:109:
++static int gpioctl_validate_policy_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#142: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:142:
++static int gpioctl_prepare_iopad_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#170: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:170:
++static int gpioctl_restore_iopad_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#196: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:196:
++		return controller->backend.ops->get_iopad(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#202: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:202:
++	if (!provider->desc.ops->supports(provider->desc.priv,
++			controller->backend.hardware_key, offset)) {
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#226: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:226:
++		ret = controller->backend.ops->set_bias(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#236: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:236:
++	if (!provider->desc.ops->supports(provider->desc.priv,
++			controller->backend.hardware_key, line->offset)) {
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#258: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:258:
++static int gpioctl_verify_value_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#262: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:262:
++	int physical = controller->backend.ops->get_value(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#296: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:296:
++	if (!gpioctl_debounce_accept_logic_zsh(line->debounce_us,
++		line->last_event_ns, now_ns)) {
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#302: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:302:
++	event_slot = gpioctl_ring_push_logic_zsh(&session->event_head,
++		&session->event_tail, &session->event_count,
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#365: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:365:
++		ret = controller->backend.ops->direction_output(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#369: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:369:
++		ret = controller->backend.ops->direction_input(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#379: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:379:
++static int gpioctl_apply_safe_state_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#392: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:392:
++		ret = controller->backend.ops->direction_output(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#396: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:396:
++		ret = controller->backend.ops->direction_input(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#400: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:400:
++			ret = gpioctl_set_bias_zsh(controller, line,
++					       policy->safe_bias);
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#408: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:408:
++static int gpioctl_release_line_locked_zsh(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#528: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:528:
++static int gpioctl_copy_lease_zsh(void __user *arg,
++				 struct gpioctl_zsh_lease *request)
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#541: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:541:
++	if (!gpioctl_reserved_zero_zsh(request->reserved,
++					ARRAY_SIZE(request->reserved)))
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#668: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:668:
++		int release_ret = gpioctl_release_line_locked_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#680: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:680:
++static int gpioctl_config_line_locked_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#711: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:711:
++			ret = controller->backend.ops->set_debounce(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#721: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:721:
++		ret = controller->backend.ops->direction_output(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#728: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:728:
++			ret = gpioctl_verify_value_zsh(controller, line,
++						 config->value);
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#731: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:731:
++		ret = controller->backend.ops->direction_input(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#760: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:760:
++	if (!gpioctl_reserved_zero_zsh(config.reserved,
++					ARRAY_SIZE(config.reserved)) ||
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#773: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:773:
++static int gpioctl_copy_values_zsh(void __user *arg,
++				  struct gpioctl_zsh_values *values)
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#786: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:786:
++	if (!gpioctl_reserved_zero_zsh(values->reserved,
++					ARRAY_SIZE(values->reserved)) ||
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#824: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:824:
++		physical = controller->backend.ops->get_value(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#869: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:869:
++		ret = controller->backend.ops->set_value(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#888: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:888:
++		controller->backend.ops->set_value(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#914: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:914:
++	if (!gpioctl_reserved_zero_zsh(batch.reserved,
++					ARRAY_SIZE(batch.reserved)) ||
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#919: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:919:
++		if (!gpioctl_reserved_zero_zsh(batch.ops[i].reserved,
++						ARRAY_SIZE(batch.ops[i].reserved)) ||
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#974: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:974:
++			ret = controller->backend.ops->set_value(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#1039: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1039:
++	if (!gpioctl_reserved_zero_zsh(config.reserved,
++					ARRAY_SIZE(config.reserved)) ||
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#1105: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1105:
++	if (!gpioctl_reserved_zero_zsh(config.reserved,
++					ARRAY_SIZE(config.reserved)) ||
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1121: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1121:
++		if (!provider || !provider->desc.ops->supports(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1134: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1134:
++		ret = controller->backend.ops->set_iopad(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1137: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1137:
++		ret = provider->desc.ops->configure(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1178: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1178:
++		if (provider && provider->desc.ops->supports(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1208: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1208:
++			ret = controller->backend.ops->get_iopad_caps(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1211: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1211:
++		if (!ret && provider && provider->desc.ops->supports(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1214: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1214:
++			ret = provider->desc.ops->get_caps(
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#1316: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1316:
++	if (!ret)
+[...]
++	else {
+[...]
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1318: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1318:
++	else {
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#1354: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1354:
++			ret = wait_event_interruptible(session->event_wait,
++				session->event_count || session->closing);
+
+CHECK:MACRO_ARG_PRECEDENCE: Macro argument 'field' may be better as '(field)' to avoid precedence issues
+#1420: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1420:
++#define GPIOCTL_ZSH_SYSFS_ATOMIC64(name, field) \
++static ssize_t name##_show(struct device *device, \
++			   struct device_attribute *attribute, char *buffer) \
++{ \
++	struct gpioctl_controller_zsh *controller = dev_get_drvdata(device); \
++	return sysfs_emit(buffer, "%lld\n", atomic64_read(&controller->field)); \
++} \
++static DEVICE_ATTR_RO(name)
+
+CHECK:MACRO_ARG_PRECEDENCE: Macro argument 'field' may be better as '(field)' to avoid precedence issues
+#1446: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1446:
++#define GPIOCTL_ZSH_SYSFS_UINT(name, field) \
++static ssize_t name##_show(struct device *device, \
++			   struct device_attribute *attribute, char *buffer) \
++{ \
++	struct gpioctl_controller_zsh *controller = dev_get_drvdata(device); \
++	return sysfs_emit(buffer, "%u\n", controller->field); \
++} \
++static DEVICE_ATTR_RO(name)
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#1551: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1551:
++	controller->device = device_create_with_groups(gpioctl_class_zsh, NULL,
++		controller->devt, controller, gpioctl_zsh_groups,
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1602: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1602:
++int gpioctl_register_iopad_provider_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#1640: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c:1640:
++int gpioctl_unregister_iopad_provider_zsh(
+
+total: 0 errors, 0 warnings, 55 checks, 1698 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/core/gpioctl_core_zsh.c has style problems, please review.
+-----------------------------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c
+-----------------------------------------------------------------------------------------------------------
+CHECK:UNCOMMENTED_DEFINITION: spinlock_t definition without comment
+#97: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c:97:
++	spinlock_t lock;
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#114: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c:114:
++static bool phytium_iopad_supports_zsh(void *priv, const char *hardware_key,
++				      unsigned int offset)
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#120: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c:120:
++static int phytium_iopad_get_caps_zsh(void *priv, const char *hardware_key,
++				     unsigned int offset,
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#150: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c:150:
++static int phytium_iopad_get_config_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#185: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c:185:
++static int phytium_iopad_configure_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#243: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c:243:
++static int phytium_iopad_lease_prepare_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#278: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c:278:
++static int phytium_iopad_lease_restore_zsh(
+
+total: 0 errors, 0 warnings, 7 checks, 378 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/kernel/backend_phytium/gpioctl_backend_phytium_zsh.c has style problems, please review.
+----------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h
+----------------------------------------------------------------------------------
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#21: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h:21:
++static inline bool gpioctl_reserved_zero_logic_zsh(
+
+CHECK:SPACING: spaces preferred around that '*' (ctx:WxV)
+#22: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h:22:
++	const gpioctl_logic_u32_zsh *reserved, size_t count)
+ 	                            ^
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#32: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h:32:
++static inline int gpioctl_validate_header_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#43: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h:43:
++static inline int gpioctl_validate_policy_logic_zsh(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#69: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h:69:
++static inline int gpioctl_active_low_value_logic_zsh(int value,
++						      bool active_low)
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#74: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h:74:
++static inline gpioctl_logic_u32_zsh gpioctl_ring_next_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#81: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h:81:
++static inline gpioctl_logic_u32_zsh gpioctl_ring_push_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#98: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h:98:
++static inline bool gpioctl_debounce_accept_logic_zsh(
+
+total: 0 errors, 0 warnings, 8 checks, 112 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_logic_zsh.h has style problems, please review.
+---------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h
+---------------------------------------------------------------------------------
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#14: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:14:
++#define GPIOCTL_ZSH_CAP_INPUT         (1ULL << 0)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#15: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:15:
++#define GPIOCTL_ZSH_CAP_OUTPUT        (1ULL << 1)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#16: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:16:
++#define GPIOCTL_ZSH_CAP_BIAS_DISABLE  (1ULL << 2)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#17: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:17:
++#define GPIOCTL_ZSH_CAP_BIAS_PULL_UP  (1ULL << 3)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#18: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:18:
++#define GPIOCTL_ZSH_CAP_BIAS_PULL_DOWN (1ULL << 4)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#19: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:19:
++#define GPIOCTL_ZSH_CAP_EDGE_RISING   (1ULL << 5)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#20: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:20:
++#define GPIOCTL_ZSH_CAP_EDGE_FALLING  (1ULL << 6)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#21: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:21:
++#define GPIOCTL_ZSH_CAP_DEBOUNCE      (1ULL << 7)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#22: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:22:
++#define GPIOCTL_ZSH_CAP_BATCH         (1ULL << 8)
+
+CHECK:BIT_MACRO: Prefer using the BIT_ULL macro
+#23: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:23:
++#define GPIOCTL_ZSH_CAP_IOPAD         (1ULL << 9)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#25: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:25:
++#define GPIOCTL_ZSH_LINE_ACTIVE_LOW   (1U << 0)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#27: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:27:
++#define GPIOCTL_ZSH_IOPAD_APPLY_BIAS  (1U << 0)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#28: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:28:
++#define GPIOCTL_ZSH_IOPAD_APPLY_DRIVE (1U << 1)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#29: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:29:
++#define GPIOCTL_ZSH_IOPAD_APPLY_MUX   (1U << 2)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#31: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:31:
++#define GPIOCTL_ZSH_LEASE_INPUT_ONLY  (1U << 0)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#33: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:33:
++#define GPIOCTL_ZSH_POLICY_ALLOW_UNPRIVILEGED (1U << 0)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#34: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:34:
++#define GPIOCTL_ZSH_POLICY_OUTPUT_ALLOWED     (1U << 1)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#35: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:35:
++#define GPIOCTL_ZSH_POLICY_RESERVED           (1U << 2)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#37: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:37:
++#define GPIOCTL_ZSH_EVENT_OVERFLOW    (1U << 0)
+
+CHECK:BIT_MACRO: Prefer using the BIT macro
+#38: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h:38:
++#define GPIOCTL_ZSH_EVENT_DEVICE_GONE (1U << 1)
+
+total: 0 errors, 0 warnings, 20 checks, 237 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/uapi/gpioctl_zsh.h has style problems, please review.
+--------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_hal_zsh.h
+--------------------------------------------------------------------------------
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#87: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_hal_zsh.h:87:
++int gpioctl_register_iopad_provider_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#90: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_hal_zsh.h:90:
++int gpioctl_unregister_iopad_provider_zsh(
+
+total: 0 errors, 0 warnings, 2 checks, 93 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_hal_zsh.h has style problems, please review.
+----------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_zsh.h
+----------------------------------------------------------------------------
+total: 0 errors, 0 warnings, 0 checks, 66 lines checked
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/include/gpioctl_zsh.h has no obvious style problems and is ready for submission.
+Use of uninitialized value $root in concatenation (.) or string at /lib/modules/6.6.63-phytium-embedded-v3.2/build/scripts/checkpatch.pl line 1174.
+-----------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c
+-----------------------------------------------------------------------------------
+find: '/include': No such file or directory
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#68: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:68:
++	fputs(
+
+CHECK:BRACES: Unbalanced braces around else statement
+#310: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:310:
++			} else
+
+CHECK:BRACES: Unbalanced braces around else statement
+#327: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:327:
++			} else
+
+CHECK:CAMELCASE: Avoid CamelCase: <PRId32>
+#397: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:397:
++			",\"failed_index\":%" PRId32
+
+CHECK:CAMELCASE: Avoid CamelCase: <PRIu32>
+#419: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:419:
++		       "\"milliseconds\":%" PRIu32 "}\n", milliseconds);
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#463: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:463:
++	if (gpioctl_zsh_lease(handle, &offset, 1,
++			direction == GPIOCTL_ZSH_DIRECTION_INPUT ?
+
+CHECK:CAMELCASE: Avoid CamelCase: <PRIu64>
+#517: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:517:
++				",\"lines\":%" PRIu32 ",\"caps\":%" PRIu64 "}\n",
+
+CHECK:CAMELCASE: Avoid CamelCase: <PRIx64>
+#523: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:523:
++			       " caps=0x%016" PRIx64 "\n",
+
+CHECK:CAMELCASE: Avoid CamelCase: <PRIx32>
+#579: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:579:
++		       " policy=0x%08" PRIx32 " safe=%s:%" PRIu32
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#609: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:609:
++	if (ret)
+[...]
++	else if (options->json) {
+[...]
++	else
+[...]
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#705: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:705:
++	if (ret)
+[...]
++	else if (options->json) {
+[...]
++	else
+[...]
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#766: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:766:
++	if (ret)
+[...]
++	else if (options->json) {
+[...]
++	else
+[...]
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#786: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:786:
++static int parse_iopad_option_zsh(const char *option,
++				   struct gpioctl_zsh_iopad_config *config)
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#852: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:852:
++		if (!handle || gpioctl_zsh_lease(handle, &offset, 1,
++					 GPIOCTL_ZSH_LEASE_INPUT_ONLY) ||
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#854: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:854:
++		    gpioctl_zsh_iopad_config(handle, config.offset, config.bias,
++					    config.drive_level, config.mux_state,
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#992: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:992:
++static struct held_line_zsh *find_held_zsh(struct runtime_zsh *runtime,
++					  const struct target_zsh *target)
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1039: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1039:
++	} else
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1078: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1078:
++	} else
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#1099: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1099:
++	if (runtime->options.json) {
+[...]
++	} else
+[...]
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1103: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1103:
++	} else
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#1150: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1150:
++		if (options->json) {
+[...]
++		else
+[...]
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1268: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1268:
++		} else
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1290: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1290:
++	} else
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#1316: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1316:
++	if (runtime->options.json) {
+[...]
++	} else
+[...]
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1321: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1321:
++	} else
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1623: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1623:
++			} else
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1641: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1641:
++			} else
+
+CHECK:BRACES: braces {} should be used on all arms of this statement
+#1743: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1743:
++		if (!strcmp(argv[index], "--json"))
+[...]
++		else if (!strcmp(argv[index], "--strict"))
+[...]
++		else if (!strcmp(argv[index], "--dry-run"))
+[...]
++		else if (!strcmp(argv[index], "--timeout") && index + 1 < argc) {
+[...]
++		else if (!strcmp(argv[index], "--config") && index + 1 < argc)
+[...]
++		else {
+[...]
+
+CHECK:BRACES: Unbalanced braces around else statement
+#1763: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c:1763:
++		else {
+
+total: 0 errors, 0 warnings, 29 checks, 1804 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/gpioctl_zsh/main.c has style problems, please review.
+-----------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c
+-----------------------------------------------------------------------------------------
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#82: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:82:
++	expect_errno_zsh(fd, _IO(GPIOCTL_ZSH_IOC_MAGIC, 0x7f), NULL,
++		ENOTTY, "unknown ioctl");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#84: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:84:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_GET_ABI, (void *)1,
++		EFAULT, "bad output pointer");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#86: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:86:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_LINE_CONFIG, (void *)1,
++		EFAULT, "bad input pointer");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#90: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:90:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_GET_LINE_CAPS, &caps,
++		EPROTO, "line caps ABI version");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#94: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:94:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_GET_LINE_CAPS, &caps,
++		EINVAL, "line caps size");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#98: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:98:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_GET_LINE_CAPS, &caps,
++		EINVAL, "line caps reserved");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#102: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:102:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_GET_LINE_CAPS, &caps,
++		EINVAL, "line caps offset");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#105: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:105:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_LEASE_REQUEST, &lease,
++		EINVAL, "zero lease count");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#108: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:108:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_LEASE_REQUEST, &lease,
++		EINVAL, "oversized lease count");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#112: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:112:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_LEASE_REQUEST, &lease,
++		EINVAL, "lease flags");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#118: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:118:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_LEASE_REQUEST, &lease,
++		EINVAL, "duplicate lease offsets");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#122: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:122:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_LEASE_REQUEST, &lease,
++		EPERM, "reserved lease offset");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#126: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:126:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_LINE_CONFIG, &config,
++		EINVAL, "line config flags");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#129: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:129:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_LINE_CONFIG, &config,
++		EPERM, "line config without lease");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#132: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:132:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_VALUES_GET, &values,
++		EINVAL, "zero value count");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#137: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:137:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_VALUES_SET, &values,
++		EINVAL, "duplicate value offsets");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#140: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:140:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_BATCH_EXEC, &batch,
++		EINVAL, "zero batch count");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#144: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:144:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_BATCH_EXEC, &batch,
++		EINVAL, "unknown batch opcode");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#148: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:148:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_EVENT_CONFIG, &event,
++		EINVAL, "invalid event edge");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#152: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:152:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_IOPAD_CONFIG, &iopad,
++		EINVAL, "invalid IOPAD flags");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#159: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c:159:
++	expect_errno_zsh(fd, GPIOCTL_ZSH_IOC_IOPAD_GET_CONFIG, &iopad,
++		EINVAL, "nonzero IOPAD query field");
+
+total: 0 errors, 0 warnings, 21 checks, 176 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_invalid_zsh.c has style problems, please review.
+----------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_layout_zsh.c
+----------------------------------------------------------------------------------------
+CHECK:CAMELCASE: Avoid CamelCase: <_Static_assert>
+#7: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_layout_zsh.c:7:
++_Static_assert(sizeof(struct gpioctl_zsh_event) == 48, "event ABI drift");
+
+total: 0 errors, 0 warnings, 1 checks, 28 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/uapi_layout_zsh.c has style problems, please review.
+-------------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/batch_rollback_zsh.c
+-------------------------------------------------------------------------------------------
+total: 0 errors, 0 warnings, 0 checks, 116 lines checked
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/batch_rollback_zsh.c has no obvious style problems and is ready for submission.
+----------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/event_epoll_zsh.c
+----------------------------------------------------------------------------------------
+total: 0 errors, 0 warnings, 0 checks, 137 lines checked
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/event_epoll_zsh.c has no obvious style problems and is ready for submission.
+-----------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/policy_probe_zsh.c
+-----------------------------------------------------------------------------------------
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#40: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/policy_probe_zsh.c:40:
++static void expect_iopad_zsh(const struct gpioctl_zsh_iopad_config *config,
++			      uint32_t bias, uint32_t drive,
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#85: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/policy_probe_zsh.c:85:
++	expect_iopad_zsh(&iopad, GPIOCTL_ZSH_BIAS_DISABLE, 0,
++			  GPIOCTL_ZSH_MUX_GPIO, "initial IOPAD state");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#98: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/policy_probe_zsh.c:98:
++	expect_iopad_zsh(&iopad, GPIOCTL_ZSH_BIAS_PULL_UP, 7,
++			  GPIOCTL_ZSH_MUX_GPIO, "configured IOPAD state");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#111: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/policy_probe_zsh.c:111:
++	expect_iopad_zsh(&iopad, GPIOCTL_ZSH_BIAS_DISABLE, 0,
++			  GPIOCTL_ZSH_MUX_GPIO, "released IOPAD state");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#125: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/policy_probe_zsh.c:125:
++	expect_errno_zsh(gpioctl_zsh_lease(handle, &offset, 1, 0), EPERM,
++			  "reserved lease");
+
+total: 0 errors, 0 warnings, 5 checks, 129 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/policy_probe_zsh.c has style problems, please review.
+----------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c
+----------------------------------------------------------------------------------
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#22: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:22:
++	require_zsh(gpioctl_reserved_zero_logic_zsh(reserved, 3),
++		"zero reserved fields");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#25: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:25:
++	require_zsh(!gpioctl_reserved_zero_logic_zsh(reserved, 3),
++		"nonzero reserved field");
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#26: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:26:
++	require_zsh(gpioctl_validate_header_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#28: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:28:
++	require_zsh(gpioctl_validate_header_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#31: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:31:
++	require_zsh(gpioctl_validate_header_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#35: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:35:
++	require_zsh(gpioctl_validate_policy_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#39: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:39:
++	require_zsh(gpioctl_validate_policy_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#43: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:43:
++	require_zsh(gpioctl_validate_policy_logic_zsh(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#51: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:51:
++	require_zsh(gpioctl_active_low_value_logic_zsh(1, false) == 1,
++		"active-high conversion");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#53: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:53:
++	require_zsh(gpioctl_active_low_value_logic_zsh(1, true) == 0,
++		"active-low conversion");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#57: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:57:
++	require_zsh(slot == 0 && head == 1 && tail == 0 && count == 1 &&
++		!dropped, "ring first push");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#60: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:60:
++	require_zsh(slot == 1 && head == 0 && tail == 0 && count == 2 &&
++		!dropped, "ring wrap push");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#63: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:63:
++	require_zsh(slot == 0 && head == 1 && tail == 1 && count == 2 &&
++		dropped, "ring overflow drops oldest");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#68: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:68:
++	require_zsh(gpioctl_debounce_accept_logic_zsh(500, 1000000, 1500000),
++		"debounce accepts boundary event");
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#70: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c:70:
++	require_zsh(!gpioctl_debounce_accept_logic_zsh(500, 1000000, 999999),
++		"debounce rejects time reversal");
+
+total: 0 errors, 0 warnings, 15 checks, 74 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/tests/logic_zsh.c has style problems, please review.
+---------------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/libgpioctl_zsh/gpioctl_zsh.c
+---------------------------------------------------------------------------------------------
+total: 0 errors, 0 warnings, 0 checks, 312 lines checked
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/userspace/libgpioctl_zsh/gpioctl_zsh.c has no obvious style problems and is ready for submission.
+--------------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c
+--------------------------------------------------------------------------------------------
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#11: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:11:
++	KUNIT_EXPECT_TRUE(test,
++		gpioctl_reserved_zero_logic_zsh(reserved, ARRAY_SIZE(reserved)));
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#14: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:14:
++	KUNIT_EXPECT_FALSE(test,
++		gpioctl_reserved_zero_logic_zsh(reserved, ARRAY_SIZE(reserved)));
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#15: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:15:
++	KUNIT_EXPECT_EQ(test, 0, gpioctl_validate_header_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#17: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:17:
++	KUNIT_EXPECT_EQ(test, -EPROTO, gpioctl_validate_header_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#19: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:19:
++	KUNIT_EXPECT_EQ(test, -EINVAL, gpioctl_validate_header_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#25: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:25:
++	KUNIT_EXPECT_EQ(test, 0, gpioctl_validate_policy_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#29: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:29:
++	KUNIT_EXPECT_EQ(test, -EINVAL, gpioctl_validate_policy_logic_zsh(
+
+CHECK:OPEN_ENDED_LINE: Lines should not end with a '('
+#32: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:32:
++	KUNIT_EXPECT_EQ(test, -EINVAL, gpioctl_validate_policy_logic_zsh(
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#42: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:42:
++	KUNIT_EXPECT_EQ(test, 1,
++		gpioctl_active_low_value_logic_zsh(1, false));
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#44: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:44:
++	KUNIT_EXPECT_EQ(test, 0,
++		gpioctl_active_low_value_logic_zsh(1, true));
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#46: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:46:
++	KUNIT_EXPECT_EQ(test, 1,
++		gpioctl_active_low_value_logic_zsh(0, true));
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#71: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:71:
++	KUNIT_EXPECT_FALSE(test,
++		gpioctl_debounce_accept_logic_zsh(500, 1000000, 1499999));
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#73: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:73:
++	KUNIT_EXPECT_TRUE(test,
++		gpioctl_debounce_accept_logic_zsh(500, 1000000, 1500000));
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#75: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c:75:
++	KUNIT_EXPECT_FALSE(test,
++		gpioctl_debounce_accept_logic_zsh(500, 1000000, 999999));
+
+total: 0 errors, 0 warnings, 14 checks, 94 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/tests/kunit/gpioctl_logic_kunit_zsh.c has style problems, please review.
+-----------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/benchmarks/libgpiod_baseline_zsh.c
+-----------------------------------------------------------------------------------------
+total: 0 errors, 0 warnings, 0 checks, 177 lines checked
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/benchmarks/libgpiod_baseline_zsh.c has no obvious style problems and is ready for submission.
+-----------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/benchmarks/gpioctl_benchmark_zsh.c
+-----------------------------------------------------------------------------------------
+total: 0 errors, 0 warnings, 0 checks, 186 lines checked
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/benchmarks/gpioctl_benchmark_zsh.c has no obvious style problems and is ready for submission.
+---------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/benchmarks/event_benchmark_zsh.c
+---------------------------------------------------------------------------------------
+total: 0 errors, 0 warnings, 0 checks, 133 lines checked
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/benchmarks/event_benchmark_zsh.c has no obvious style problems and is ready for submission.
+---------------------------------------------------------------------------------------------
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/lab/raw-mmio-lab/gpioctl_raw_lab_zsh.c
+---------------------------------------------------------------------------------------------
+CHECK:UNCOMMENTED_DEFINITION: spinlock_t definition without comment
+#17: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/lab/raw-mmio-lab/gpioctl_raw_lab_zsh.c:17:
++	spinlock_t lock;
+
+CHECK:PARENTHESIS_ALIGNMENT: Alignment should match open parenthesis
+#25: FILE: /home/zsh/zsh/course_design/home/zsh/zsh/course_design/lab/raw-mmio-lab/gpioctl_raw_lab_zsh.c:25:
++MODULE_PARM_DESC(allow_write,
++	"Permit isolated probe-time RMW self-test; default false");
+
+total: 0 errors, 0 warnings, 2 checks, 111 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/zsh/zsh/course_design/home/zsh/zsh/course_design/lab/raw-mmio-lab/gpioctl_raw_lab_zsh.c has style problems, please review.
+
+NOTE: Ignored message types: ELSE_AFTER_BRACE PREFER_KERNEL_TYPES SPLIT_STRING
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.

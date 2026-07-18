@@ -7,7 +7,7 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+project_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 kernel_release=${KERNEL_RELEASE:-$(uname -r)}
 "$project_dir/scripts/unload_zsh.sh" --remove-overlay 2>/dev/null || true
 rm -f /usr/local/bin/gpioctl_zsh

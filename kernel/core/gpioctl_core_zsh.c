@@ -798,14 +798,20 @@ static int gpioctl_values_get_zsh(struct gpioctl_session_zsh *session,
 				  void __user *arg)
 {
 	struct gpioctl_controller_zsh *controller = session->controller;
-	struct gpioctl_zsh_values values;
+	struct gpioctl_zsh_values request;
+	struct gpioctl_zsh_values values = {
+		.abi_version = GPIOCTL_ZSH_ABI_VERSION,
+		.struct_size = sizeof(values),
+	};
 	unsigned int i;
 	int ret, physical;
 
-	ret = gpioctl_copy_values_zsh(arg, &values);
+	ret = gpioctl_copy_values_zsh(arg, &request);
 	if (ret)
 		return ret;
-	values.values = 0;
+	values.count = request.count;
+	memcpy(values.offsets, request.offsets,
+	       request.count * sizeof(request.offsets[0]));
 	mutex_lock(&session->lock);
 	for (i = 0; i < values.count; i++) {
 		struct gpioctl_line_state_zsh *line =

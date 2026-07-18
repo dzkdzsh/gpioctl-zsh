@@ -1,0 +1,28 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "phytium,pi";
+
+	fragment@0 {
+		target-path = "/soc/gpio@28038000";
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			gpioctl-raw-isolated-zsh@28038000 {
+				compatible = "zsh,phytium-gpio-raw-lab";
+				reg = <0x0 0x28038000 0x0 0x1000>;
+				zsh,isolation-confirmed;
+				status = "okay";
+			};
+		};
+	};
+};

@@ -1,0 +1,19 @@
+[sudo] password for zsh: 
+gpioctl_zsh unloaded; overlay=preserved
+policy_probe_zsh: PASS
+uapi_invalid_zsh: PASS
+batch_rollback_zsh: PASS failed_index=1 rollback_error=-EIO
+json_cli_zsh.py: PASS
+cli_parser_fuzz_zsh.py: PASS cases=317
+concurrency different-lines workers=1: PASS
+concurrency different-lines workers=2: PASS
+concurrency different-lines workers=4: PASS
+concurrency different-lines workers=8: PASS
+concurrency same-line workers=8 and unload exclusion: PASS
+SIGKILL lease cleanup: PASS
+event/close race: PASS
+concurrency_mock_zsh.sh: PASS
+batch-set /dev/gpio0_zsh failed: Input/output error
+set /dev/gpio0_zsh:3 failed: Device or resource busy
+event_epoll_zsh: PASS events=256 overflow=44 drops=44 first_sequence=45 last_sequence=300
+mock_smoke_zsh: PASS

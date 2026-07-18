@@ -1,0 +1,5 @@
+[sudo] password for zsh: 
+stress elapsed=15s active=2 operations=29217 events=595 drops=0
+stress elapsed=30s active=1 operations=58442 events=1189 drops=0
+stress elapsed=45s active=1 operations=87514 events=1784 drops=0
+mixed_mock_zsh.sh: PASS duration=60s set=14169 batch=14476 get=14184 contend=8519+8598 event_rounds=117

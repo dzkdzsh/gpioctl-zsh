@@ -1,7 +1,7 @@
 KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD_DIR ?= $(CURDIR)/build
 
-.PHONY: all kernel userspace dts clean check kunit install uninstall
+.PHONY: all kernel userspace dts benchmark benchmark-libgpiod clean check kunit static-analysis audit install uninstall
 
 all: kernel userspace dts
 
@@ -13,6 +13,12 @@ kernel:
 userspace:
 	$(MAKE) -C userspace BUILD_DIR=$(BUILD_DIR)/userspace
 
+benchmark:
+	$(MAKE) -C userspace BUILD_DIR=$(BUILD_DIR)/userspace benchmark
+
+benchmark-libgpiod:
+	$(MAKE) -C userspace BUILD_DIR=$(BUILD_DIR)/userspace benchmark-libgpiod
+
 dts:
 	$(MAKE) -C dts BUILD_DIR=$(BUILD_DIR)/dts
 
@@ -21,6 +27,12 @@ check:
 
 kunit:
 	./scripts/run_kunit_zsh.sh
+
+static-analysis:
+	./scripts/static_analysis_zsh.sh
+
+audit:
+	./scripts/release_audit_zsh.sh
 
 install: all
 	./scripts/install_zsh.sh

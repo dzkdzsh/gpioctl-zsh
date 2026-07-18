@@ -38,6 +38,7 @@ static int fail_offset_zsh = -1;
 static int busy_offset_zsh = -1;
 static int timeout_offset_zsh = -1;
 static int operation_fail_offset_zsh = -1;
+static int fail_after_operations_zsh = -1;
 static int readback_error_offset_zsh = -1;
 module_param_named(fail_offset, fail_offset_zsh, int, 0644);
 MODULE_PARM_DESC(fail_offset, "Mock line offset that returns -EIO, or -1");
@@ -50,6 +51,9 @@ MODULE_PARM_DESC(timeout_offset,
 module_param_named(operation_fail_offset, operation_fail_offset_zsh, int, 0644);
 MODULE_PARM_DESC(operation_fail_offset,
 		 "Mock line offset whose next post-request operation returns -EIO, or -1");
+module_param_named(fail_after_operations, fail_after_operations_zsh, int, 0644);
+MODULE_PARM_DESC(fail_after_operations,
+		 "Successful post-request operations before persistent -EIO, or -1");
 module_param_named(readback_error_offset, readback_error_offset_zsh, int, 0644);
 MODULE_PARM_DESC(readback_error_offset,
 		 "Mock line offset whose value readback is inverted, or -1");
@@ -127,10 +131,23 @@ MODULE_PARM_DESC(inject_offset,
 static int gpioctl_mock_maybe_fail_zsh(struct gpioctl_mock_line_zsh *line,
 				       bool request)
 {
+	int remaining;
+
 	if (line->offset == READ_ONCE(timeout_offset_zsh))
 		return -ETIMEDOUT;
 	if (request && line->offset == READ_ONCE(busy_offset_zsh))
 		return -EBUSY;
+	if (!request) {
+		remaining = READ_ONCE(fail_after_operations_zsh);
+		while (remaining >= 0) {
+			if (!remaining)
+				return -EIO;
+			if (cmpxchg(&fail_after_operations_zsh, remaining,
+				    remaining - 1) == remaining)
+				break;
+			remaining = READ_ONCE(fail_after_operations_zsh);
+		}
+	}
 	if (!request &&
 	    cmpxchg(&operation_fail_offset_zsh, (int)line->offset, -1) ==
 		(int)line->offset)

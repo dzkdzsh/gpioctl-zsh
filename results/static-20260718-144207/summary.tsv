@@ -1,0 +1,13 @@
+check	status	exit_code
+kernel_w1	PASS	0
+raw_lab_w1	PASS	0
+sparse	PASS	0
+raw_lab_sparse	PASS	0
+coccinelle	PASS	0
+raw_lab_coccinelle	PASS	0
+smatch	PASS	0
+raw_lab_smatch	PASS	0
+checkpatch	PASS	0
+gcc_analyzer	PASS	0
+cppcheck	PASS	0
+shellcheck	PASS	0
