@@ -9,15 +9,39 @@
 Linux 6.6 是实现基线；其他内核只有完成实际构建和测试后才能标为已验证。
 仓库不依赖固定工作目录；下文使用克隆后的仓库根目录。
 
-## 构建
+## 从电脑传到板子
+
+Release 源码解压后，先在电脑终端进入解压目录的上一级，再传输整个源码目录。以下
+PowerShell 示例中的 `<BOARD_IP>` 必须替换为板子的实际 IP：
+
+```powershell
+scp -r .\gpioctl-zsh-0.1.0 zsh@<BOARD_IP>:~/
+ssh zsh@<BOARD_IP>
+```
+
+内核模块必须针对板上运行的内核构建，所以后续命令均在板子上执行。
+
+## 板上构建
 
 ```sh
-git clone https://github.com/dzkdzsh/gpioctl-zsh.git
-cd gpioctl-zsh
-make -j2
+cd ~/gpioctl-zsh-0.1.0
+
+uname -r
+test -f "/lib/modules/$(uname -r)/build/Makefile" || {
+    echo "缺少当前运行内核的头文件/构建目录" >&2
+    exit 1
+}
+
+sudo apt-get update
+sudo apt-get install -y build-essential device-tree-compiler
+make -j"$(nproc)"
 make check
 make kunit
 ```
+
+`build-essential` 和 `device-tree-compiler` 只安装编译器、GNU Make 与 DTC，不会安装
+飞腾厂商内核的匹配头文件。若上述检查失败，必须先为 `uname -r` 显示的内核准备
+`/lib/modules/$(uname -r)/build`，不能直接继续 `make`。
 
 `make check` 运行 UAPI 布局、同源纯逻辑和 CLI self-test。当前板内核未启用
 `CONFIG_KUNIT`，因此 `make kunit` 明确显示 SKIP；KUnit 模块可以用当前头文件
@@ -32,8 +56,12 @@ make kunit
 sudo make install
 sudo ./scripts/load_zsh.sh
 ls -l /dev/gpio*_zsh
-gpioctl_zsh list
+sudo gpioctl_zsh list
 ```
+
+首次使用 `sudo gpioctl_zsh list` 可绕过用户组尚未重新登录的问题，而且该命令只读、
+不改变 GPIO 电平。`load_zsh.sh` 显示 `overlay=applied`、`list` 能列出控制器且设备
+节点存在，即完成最小部署验证。
 
 安装内容：
 
