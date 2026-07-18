@@ -24,12 +24,14 @@
 | `json_cli_zsh.py` | stdout/stderr JSON Lines 与脚本错误 | PASS |
 | `cli_parser_fuzz_zsh.py` | 固定恶意输入 + 随机长 token | PASS，317 cases |
 | `concurrency_mock_zsh.sh` | 1/2/4/8 worker、同线冲突、SIGKILL、卸载、close race | PASS |
-| mock fault injection | busy、timeout、partial、wrong readback | PASS；rollback failure 专项待新版本板端复验 |
+| mock fault injection | busy、timeout、partial、wrong readback、rollback failure | PASS；原始失败 `EIO`，`failed_index=1`，`rollback_error=-EIO` |
 | deterministic events | edge、debounce、epoll、overflow | 300 注入→256 记录、44 drop、seq 45..300 |
 | `module_lifecycle_zsh.sh` | 活动 FD 拒绝卸载、生产模块重载 | PASS，20 cycles，overlay warning 不增长 |
 | `phytium_led_smoke_zsh.sh` | 三别名解析、单/双灯写后读回与释放 | PASS |
 
-`mock_smoke_zsh.sh` 汇总前述 mock/UAPI/CLI/并发/事件项目，已连续普通速度运行通过。
+`mock_smoke_zsh.sh` 汇总前述 mock/UAPI/CLI/并发/事件项目，最终普通模式通过；原始
+记录 `results/mock-smoke-final-20260718.txt`，SHA-256
+`2060c8fafbd3fa61315c9d7c0df1f9b1e7412a6c2da6179120b51f080374bf07`。
 
 ## 实板 IOPAD 生命周期
 
@@ -81,14 +83,48 @@ GPIO 相关 BUG/Oops/WARNING 计数未增长；随后独立核对六个生产设
 `916dbbf6d9864ecb6d1ac479160e5e0e3020b2a9139c2b4433630168eda24a80`。
 
 压力后新增代码只涉及默认禁用的 mock 故障模式、CLI batch 错误元数据、测试/
-benchmark/raw-lab 工件和文档；同步后仍需运行完整 mock 回归及缩短混合回归，结果
-单独归档，不能篡改上述一小时基线的提交标识。
+benchmark/raw-lab 工件、用户返回对象清零和文档。同步后的完整 mock 回归已通过；
+另运行 60 秒混合回归，完成 14169 set、14476 batch、14184 get、8519+8598 同线
+竞争和 117 轮事件，0 drop、最终租约 0。原始记录
+`results/stress-mixed-60s-20260718.txt`，SHA-256
+`930596caad7a9c0aeafbdbf12308def7264c32c4ad2ff0359fd011e4e4729f41`。
 
 ## 静态分析
 
-状态：待一小时负载完成后执行，避免在同一板上干扰正式压力条件。将记录 W=1、
-Sparse、Coccinelle、Smatch（若可安装）、ShellCheck、GCC analyzer/Cppcheck 的工具
-版本、命令、原始输出和每项处置。
+状态：PASS，最终结果目录 `results/static-20260718-144207/`。内核与 raw lab 的
+`W=1`、Sparse、Coccinelle、Smatch，以及 checkpatch、GCC analyzer、Cppcheck、
+ShellCheck 共 12 项全部通过。Smatch 的 `warn:`/`error:` 即使工具返回 0 也作为
+发布阻断；最终无此类诊断。checkpatch 严格原始退出码为 1，但只有 advisory CHECK，
+0 error、0 warning，按门禁策略通过。`summary.tsv` SHA-256：
+`1f3b95240de1f7e67b733f5e2d5f78343be598a604a2150b4e753f7daecf1905`。
+
+## raw-MMIO 隔离实验
+
+状态：部分 PASS、真实写 SKIP。`allow_write=0` 的冲突探针在安全 GPIO4 已占用同一
+MMIO 资源时因 `EBUSY` 拒绝绑定，且 `/dev/gpio4_zsh` 保持存在；原始记录
+`results/raw-mmio-conflict-final-20260718.txt`，SHA-256
+`03ef0ae6f4b497e230107ba2ed1174de800f1e19d96ff78de9ccccce2aa03c9c1`。
+GPIO4_7 接有 LED，且没有专用启动镜像证明整个 GPIO4 已隔离，因此真实 raw 写按
+安全门记录为 `SKIP (isolation not proven)`。
+
+## 最终硬件与发布审计
+
+2026-07-18 运行三灯 smoke：LED20 闪烁三次，GPIO1_11 与 GPIO4_7 交替三轮；
+三者结束逻辑值为 0，六个控制器活动租约均为 0。硬件原始记录 SHA-256：
+`e61909cded4407f41ff9b50a90329efcf3ae564c11345bd86c8efddcda31c486`。
+
+发布审计 PASS：生产 CLI/静态库不链接或引用 libgpiod，通用 core/UAPI 无板级 pin
+和地址，自动化无固定 IP、无 raw `/dev/mem` 旁路，且无残留租约。CLI SHA-256 为
+`1f772679bab5dfc3eb36c15014b16fbb8a89f906ab31f63b4b6b66da7e479b6e`，
+静态库 SHA-256 为
+`435fb221c89019c103b8c1f7941d1950839cbdd8095cedd636dd3535ba438beb`。
+
+## 性能基准
+
+状态：PASS（方法与数据完整），提交 `b5e1797` 上自研/libgpiod 各 10000 正式样本。
+单线 get 与 lease/release 分别为基线吞吐的 105.45% 和 99.98%；单线 set 与 8-line
+batch 分别为 74.68% 和 67.75%，未达约 90% 目标。事件 delivery P99 为 6540 ns，
+roundtrip P99 为 18300 ns。完整数据、语义差异和瓶颈见 `docs/performance-zsh.md`。
 
 ## 尚待硬件仪器验证
 

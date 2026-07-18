@@ -1,0 +1,2 @@
+[sudo] password for zsh: 
+raw-mmio conflict test: PASS active GPIO4 rejected duplicate claim with EBUSY

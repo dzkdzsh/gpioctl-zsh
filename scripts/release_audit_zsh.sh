@@ -47,7 +47,8 @@ if grep -R -n -E \
 	"$project_dir/benchmarks"; then
 	fail_zsh "automation hardcodes a board IP instead of phytiumPi"
 fi
-if grep -R -n -E '(/dev/mem|devmem[[:space:]])' \
+if grep -R -n --exclude=release_audit_zsh.sh -E \
+	'(/dev/mem|devmem[[:space:]])' \
 	"$project_dir/kernel" "$project_dir/userspace" \
 	"$project_dir/scripts" "$project_dir/tests"; then
 	fail_zsh "production/test path contains a raw /dev/mem bypass"

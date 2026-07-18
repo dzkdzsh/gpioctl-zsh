@@ -14,7 +14,7 @@
 | R7 | sysfs 监控 | class attributes，无写控制节点 | mock/实板 stats 与属性核对 | 已验证 |
 | R8 | 通用/可扩展 | core 无板级 pin，DT policy、HAL ABI/caps | source audit、全 40-pin 映射、mock | 已验证 |
 | R9 | 每 FD 独占租约/自动释放 | controller bitmap + session line + module refs | 8 路冲突、SIGKILL、active=0 | 已验证 |
-| R10 | 同控制器 batch/回滚 | 全验证、快照、写后读回、逆序回滚 | partial/wrong-readback/transaction 已通过；rollback failure 待复验 | 主路径已验证；新增专项待执行 |
+| R10 | 同控制器 batch/回滚 | 全验证、快照、写后读回、逆序回滚 | partial/wrong-readback/transaction/rollback failure | 已验证 |
 | R11 | edge/read/poll/epoll | threaded IRQ、预分配 ring | 事件、去抖、epoll、300→256/44 | 已验证 |
 | R12 | overflow 可检测 | drop oldest、flag、event_drops | first seq45/last300/drop44 | 已验证 |
 | R13 | 权限/allowlist/reserved | udev、DT policy、CAP_SYS_RAWIO | 普通用户/特权/保留线 probe | 已验证 |
@@ -23,12 +23,12 @@
 | R16 | 锁与上下文安全 | controller→session、event/MMIO leaf spinlock、断言 | 源码审计、并发/event-close | 已验证；LOCKDEP 内核不可用 |
 | R17 | probe/remove/module 生命周期 | module refs、busy 注销、持久 overlay | 活动租约卸载拒绝、20 次 reload | 已验证 |
 | R18 | KUnit | 同源 logic header + 独立 KUnit module | `.ko` 编译，`make kunit` 配置探测 | 工件完成；当前内核运行 SKIP |
-| R18A | raw-MMIO 实验隔离 | `lab/raw-mmio-lab` 独立模块/双 overlay | 活动 gpiochip 冲突必须 EBUSY；真实写需专用启动隔离 | 工件完成；安全冲突待验证，真实写 SKIP |
+| R18A | raw-MMIO 实验隔离 | `lab/raw-mmio-lab` 独立模块/双 overlay | 活动 gpiochip 冲突为 EBUSY；真实写需专用启动隔离 | 冲突 PASS；真实写安全 SKIP |
 | R19 | 1 小时混合压力 | `mixed_mock_zsh.sh` | 3600 秒：854330 set、874079 batch、858353 get、0 drop、最终 leases=0 | 已验证；raw SHA-256 已归档 |
-| R20 | 静态分析 | max warnings/Sparse/Cocci/Smatch 等 | 保存命令、版本、原始输出 | 待执行 |
-| R21 | 黑盒性能对照 | 独立 persistent-FD harness、运行器、统计器 | 同板/同 pin/affinity/raw CSV | 工件完成，待执行 |
-| R22 | 无 libgpiod 依赖/原创 | 自定义 UAPI/API/CLI，`DEPENDENCY.md` | link/dependency/source scan | 基线完成，终审待执行 |
-| R23 | 完整文档与原始数据 | docs + build/results/归档 | 文件清单、链接、复现审计 | 进行中 |
+| R20 | 静态分析 | max warnings/Sparse/Cocci/Smatch 等 | 12 项最终门禁及逐工具原始输出 | 已验证 |
+| R21 | 黑盒性能对照 | 独立 persistent-FD harness、运行器、统计器 | 同板/同 pin/affinity、10000 样本、raw CSV | 已验证；set/batch 未达 90% 如实记录 |
+| R22 | 无 libgpiod 依赖/原创 | 自定义 UAPI/API/CLI，`DEPENDENCY.md` | link/dependency/source/release audit | 已验证 |
+| R23 | 完整文档与原始数据 | docs + results 归档 | 文件清单、SHA-256、复现与发布审计 | 已验证 |
 
 ## 课程题目直接对应
 

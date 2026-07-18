@@ -33,6 +33,7 @@ iteration、latency_ns。统计器从 raw 数据重算平均值、P50/P95/P99、
 ## 复现
 
 ```sh
+sudo apt-get install -y time libgpiod-dev gpiod
 make benchmark benchmark-libgpiod
 sudo GPIOCTL_ZSH_SOURCE_COMMIT=$(git rev-parse HEAD) \
   benchmarks/run_benchmarks_zsh.sh
@@ -46,6 +47,46 @@ sudo GPIOCTL_ZSH_SOURCE_COMMIT=$(git rev-parse HEAD) \
 
 ## 正式结果
 
-状态：待一小时稳定性硬门完成后执行。最终填写原始文件 SHA-256、环境、完整汇总表、
-是否达到单线约 90% 目标，以及未达到项目的瓶颈分析。raw-MMIO lab 数据永不合并进
-生产安全后端结论。
+状态：PASS（测试与数据完整性）；性能目标为“逐项评价”，不把未达到的项目写成
+通过。2026-07-18 在源码提交 `b5e1797b90bdc03255e1ab8335d4d86092d2a56f`、
+`6.6.63-phytium-embedded-v3.2`、CPU `0-3` 上执行，正式样本每项 10000 次、
+预热 1000 次。
+
+| 实现/指标 | line/worker | mean ns | P50 ns | P95 ns | P99 ns | line ops/s | 自研/基线吞吐 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| gpioctl set | 1/1 | 1634.83 | 1440 | 2260 | 2260 | 611684 | 74.68% |
+| libgpiod set | 1/1 | 1220.87 | 1200 | 1240 | 1260 | 819090 | 基线 |
+| gpioctl get | 1/1 | 1306.89 | 1260 | 1500 | 1580 | 765177 | 105.45% |
+| libgpiod get | 1/1 | 1378.08 | 1420 | 1560 | 1660 | 725645 | 基线 |
+| gpioctl lease/release | 1/1 | 8634.30 | 8300 | 9460 | 12780 | 115817 | 99.98% |
+| libgpiod lease/release | 1/1 | 8632.43 | 8000 | 9580 | 10600 | 115842 | 基线 |
+| gpioctl batch set | 8/1 | 7689.14 | 7280 | 9920 | 9960 | 1040429 | 67.75% |
+| libgpiod batch set | 8/1 | 5209.65 | 5180 | 5200 | 5600 | 1535612 | 基线 |
+| gpioctl set | 1/4 | 2004.73 | 1780 | 2980 | 5040 | 1995283 | 107.08% |
+| libgpiod set | 1/4 | 2146.65 | 2180 | 2940 | 3360 | 1863372 | 基线 |
+| gpioctl set | 1/8 | 3601.25 | 1860 | 2700 | 3020 | 2221449 | 87.70% |
+| libgpiod set | 1/8 | 3158.13 | 1500 | 2680 | 2900 | 2533146 | 基线 |
+
+完整 `1/2/4/8` batch 与 `1/2/4/8` worker 行保存在 `summary.csv`，上表只列
+边界和代表行。单线 get 与 lease/release 达到约 90% 目标，单线 set 和 batch
+未达到。主要原因是自研 SET 的公开语义强制写后读回，并经过租约/策略状态检查和
+session mutex；libgpiod 对照 SET 不包含同等读回。batch 后端当前也逐线设置和逐线
+读回，没有飞腾硬件批量寄存器优化。4-worker 吞吐高于基线、8-worker 又低于基线，
+说明调度与锁竞争会影响短样本并发结果，不能据单个峰值宣称全面更快。
+
+事件 mock 容量测试结果：delivery mean/P50/P95/P99 为
+`5126.53/5060/5200/6540 ns`，roundtrip 为
+`10101.05/9880/10260/18300 ns`；10000 次均完成，运行器结束后租约为 0。
+
+原始证据：
+
+- `results/benchmark-20260718-145217/raw.csv`，SHA-256
+  `8c214a3d5f2cd0004b0586a3a36bdc922476bebb06c888e65f102b7484c1214a`；
+- `results/benchmark-20260718-145217/summary.csv`，SHA-256
+  `4148284693e152fd7b2b6f3502d9f5e8c8d74fb3f84fbc292c174cfb93460a64`；
+- `results/event-20260718-145236/raw.csv`，SHA-256
+  `88962a7f362fed395b46a78e4a95989c88e959f3d534dcc90ad5c73681f6cd5a`；
+- `results/event-20260718-145236/summary.csv`，SHA-256
+  `2ef182d48ec789de2eaa4fd1d9895ba50ed35f5e91a23975f69a3547eda2da5e`。
+
+raw-MMIO lab 数据不合并进生产安全后端结论。

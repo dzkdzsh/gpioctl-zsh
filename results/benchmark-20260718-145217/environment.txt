@@ -1,0 +1,39 @@
+2026-07-18T14:52:17,831170033+08:00
+Linux phytiumpi 6.6.63-phytium-embedded-v3.2 #1 SMP PREEMPT Wed Jun 25 11:38:56 CST 2025 aarch64 GNU/Linux
+source_commit=b5e1797b90bdc03255e1ab8335d4d86092d2a56f
+iterations=10000
+warmup=1000
+cpuset=0-3
+single_own=/dev/gpio1_zsh:11
+single_libgpiod=/dev/gpiochip1:11
+batch_offsets=6 7 8 9 10 11 12 13
+
+[product ldd]
+	linux-vdso.so.1 (0x0000ffffb2960000)
+	libc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ffffb2750000)
+	/lib/ld-linux-aarch64.so.1 (0x0000ffffb2923000)
+
+[baseline ldd]
+	linux-vdso.so.1 (0x0000ffff9112e000)
+	libgpiod.so.2 => /lib/aarch64-linux-gnu/libgpiod.so.2 (0x0000ffff91090000)
+	libc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ffff90ee0000)
+	/lib/ld-linux-aarch64.so.1 (0x0000ffff910f1000)
+
+[libgpiod]
+gpiodetect (libgpiod) v1.6.3
+Copyright (C) 2017-2018 Bartosz Golaszewski
+License: LGPLv2.1
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+gpiochip0 [28034000.gpio] (16 lines)
+gpiochip1 [28035000.gpio] (16 lines)
+gpiochip2 [28036000.gpio] (16 lines)
+gpiochip3 [28037000.gpio] (16 lines)
+gpiochip4 [28038000.gpio] (16 lines)
+gpiochip5 [28039000.gpio] (16 lines)
+
+[gpioctl mapping]
+alias=GPIO1_11 device=/dev/gpio1_zsh offset=11 active_low=0 pad=BA49 physical_pin=15 description=external_led_1
+controller_caps=0x00000000000003ff line_caps=0x00000000000003ff drive=0..15 policy=0x00000003 safe=out:0 bias=1
+alias=GPIO4_7 device=/dev/gpio4_zsh offset=7 active_low=0 pad=W53 physical_pin=19 description=external_led_2
+controller_caps=0x00000000000003ff line_caps=0x00000000000003ff drive=0..15 policy=0x00000003 safe=out:0 bias=1

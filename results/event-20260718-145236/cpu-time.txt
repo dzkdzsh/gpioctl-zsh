@@ -1,0 +1,1 @@
+wall_s=0.12 user_s=0.01 system_s=0.07 cpu_percent=69%

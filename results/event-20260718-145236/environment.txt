@@ -1,0 +1,6 @@
+2026-07-18T14:52:36,886714672+08:00
+Linux phytiumpi 6.6.63-phytium-embedded-v3.2 #1 SMP PREEMPT Wed Jun 25 11:38:56 CST 2025 aarch64 GNU/Linux
+source_commit=b5e1797b90bdc03255e1ab8335d4d86092d2a56f
+iterations=10000
+cpuset=0-3
+generator=mock sysfs injection -> generic IRQ -> threaded handler

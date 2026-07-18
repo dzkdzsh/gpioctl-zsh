@@ -1,0 +1,6 @@
+alias=LED20 device=/dev/gpio1_zsh offset=8 active_low=1 pad=E37 physical_pin=onboard description=board_led20
+alias=GPIO1_11 device=/dev/gpio1_zsh offset=11 active_low=0 pad=BA49 physical_pin=15 description=external_led_1
+alias=GPIO4_7 device=/dev/gpio4_zsh offset=7 active_low=0 pad=W53 physical_pin=19 description=external_led_2
+blink target=LED20 cycles=3 final=0
+pair-blink a=GPIO1_11 b=GPIO4_7 cycles=3 final=0,0
+phytium_led_smoke_zsh: PASS
