@@ -196,3 +196,14 @@ sudo GPIOCTL_ZSH_LIFECYCLE_CYCLES=20 tests/stress/module_lifecycle_zsh.sh
 ```
 
 该测试还断言整个循环不会新增 overlay 动态移除警告。
+
+正式混合压力测试默认运行一小时，组合单线读写、批量事务、同线竞争和 epoll
+事件轮次；测试结束必须满足零活动租约且没有新增 GPIO 相关 BUG/Oops/WARNING：
+
+```sh
+sudo tests/stress/mixed_mock_zsh.sh
+
+# 快速复验可显式缩短，但不能替代发布前的一小时结果
+sudo GPIOCTL_ZSH_STRESS_SECONDS=60 GPIOCTL_ZSH_REPORT_SECONDS=10 \
+  tests/stress/mixed_mock_zsh.sh
+```
