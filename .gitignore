@@ -1,4 +1,5 @@
 /build/
+/设计题目.txt
 *.o
 *.ko
 *.mod
@@ -15,4 +16,17 @@ compile_commands.json
 *.log
 *.jsonl
 __pycache__/
-
+.pytest_cache/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.bak
+.env
+.env.*
+*.pem
+*.key
+credentials*

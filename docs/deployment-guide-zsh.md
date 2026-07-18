@@ -5,15 +5,15 @@
 - 飞腾派，AArch64
 - Linux `6.6.63-phytium-embedded-v3.2`
 - GCC 12.2、GNU Make、device-tree-compiler
-- 本地源码目录：`C:\Users\zsh\Documents\course\phytium\course_design`
-- 板上工作目录：`/home/zsh/zsh/course_design/home/zsh/zsh/course_design`
 
 Linux 6.6 是实现基线；其他内核只有完成实际构建和测试后才能标为已验证。
+仓库不依赖固定工作目录；下文使用克隆后的仓库根目录。
 
 ## 构建
 
 ```sh
-cd /home/zsh/zsh/course_design/home/zsh/zsh/course_design
+git clone https://github.com/dzkdzsh/gpioctl-zsh.git
+cd gpioctl-zsh
 make -j2
 make check
 make kunit

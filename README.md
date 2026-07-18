@@ -1,5 +1,45 @@
 # gpioctl_zsh：通用 GPIO 字符设备控制系统
 
+## English overview
+
+`gpioctl_zsh` is a from-scratch Linux GPIO character-device control stack. It
+provides a versioned ioctl UAPI, an extensible kernel HAL, a C library, and a CLI
+for one-shot, interactive, and scripted GPIO control. The production code does
+not copy, link, or depend on libgpiod; libgpiod is used only by an optional,
+explicitly built black-box benchmark.
+
+The generic core contains no Phytium register addresses, fixed controller
+count, LED pin, or PAD name. Hardware-specific behavior is isolated behind
+backends, Device Tree data, and board configuration. The current hardware
+validation covers Phytium Pi running Linux
+`6.6.63-phytium-embedded-v3.2`; other SoCs and kernel versions remain unverified.
+
+Highlights:
+
+- per-file-descriptor exclusive leases with automatic cleanup and safe-state
+  restoration;
+- single-line and rollback-capable batch operations, edge events, bounded
+  queues, statistics, and read-only sysfs observability;
+- a constrained IOPAD interface with capability checks instead of arbitrary
+  register access;
+- one-shot commands, an interactive shell, a deterministic script mode, JSON
+  Lines output, dry-run validation, and process-wide deadlines;
+- mock fault injection, parser fuzzing, concurrency and lifecycle stress tests,
+  static analysis, hardware smoke tests, and reproducible benchmark data.
+
+Start with the [CLI user guide](docs/user-guide-zsh.md),
+[deployment guide](docs/deployment-guide-zsh.md), and
+[architecture](docs/architecture-zsh.md). Documentation is primarily written in
+Chinese. Raw measurement data is intentionally versioned under `results/`.
+
+> **Hardware warning:** GPIO, pin multiplexing, bias, drive strength, and raw
+> MMIO mistakes can damage hardware or conflict with another driver. Verify the
+> board schematic, line ownership, voltage, and current limiting before any
+> output operation. The isolated raw-MMIO lab is never part of the default build
+> or installation path.
+
+## 中文说明
+
 `gpioctl_zsh` 是课程设计中从零实现的 Linux GPIO 控制系统。生产与默认构建工件
 不复制、不链接、也不运行时依赖 libgpiod；它使用 Linux 内核公开的 gpiolib 接口，
 并提供原创的版本化 ioctl UAPI、C 用户库和命令行工具。
@@ -63,10 +103,38 @@ sudo make uninstall
 
 ## CLI 快速使用
 
-板级配置安装为 `/etc/gpioctl_zsh/board.conf`，也可通过 `--config` 指定。
+完整的概念、语法、命令参考、脚本规则和故障处理见
+[CLI 用户指南](docs/user-guide-zsh.md)。CLI 的通用结构为：
+
+```text
+gpioctl_zsh [GLOBAL_OPTIONS] COMMAND [ARGUMENTS]
+```
+
+多数命令操作一个 `TARGET`。`TARGET` 可以写成板级别名、通用名
+`GPIO<CONTROLLER>_<OFFSET>`，或直接路径
+`/dev/gpio<CONTROLLER>_zsh:<OFFSET>`。三种形式最终都解析为字符设备与 offset；
+通用名只编码控制器和 offset，并不表示某种具体接线。执行输出操作前先检查：
+
+```text
+gpioctl_zsh list
+gpioctl_zsh resolve TARGET
+gpioctl_zsh info TARGET
+gpioctl_zsh --dry-run set TARGET 1 1000
+```
+
+板级配置安装为 `/etc/gpioctl_zsh/board.conf`，也可通过 `--config FILE` 指定。
+全局选项必须位于命令之前。`get`、`set`、`blink` 等一次性命令的通用语法为：
+
+```text
+gpioctl_zsh get TARGET
+gpioctl_zsh set TARGET VALUE [HOLD_MS]
+gpioctl_zsh blink TARGET COUNT ON_MS OFF_MS
+gpioctl_zsh watch TARGET rising|falling|both TIMEOUT_MS [COUNT] [DEBOUNCE_US]
+```
+
+以下才是当前飞腾派课程板的具体示例，不是通用语法定义：
 
 ```sh
-gpioctl_zsh list
 gpioctl_zsh resolve GPIO1_11
 gpioctl_zsh info GPIO4_7
 gpioctl_zsh get GPIO1_11
@@ -78,7 +146,7 @@ gpioctl_zsh watch GPIO1_11 both 5000 10
 gpioctl_zsh stats GPIO1_11
 gpioctl_zsh iopad-get GPIO4_7
 
-# 电气配置必须使用 sudo/root；未写出的字段保持原值
+# 当前板上修改 IOPAD 需要 sudo/root；未写出的字段保持原值
 sudo gpioctl_zsh iopad GPIO4_7 mux=gpio bias=none drive=4
 ```
 
@@ -111,7 +179,8 @@ gpioctl_zsh --timeout 5000 --strict run demo.gpioctl
 `--timeout MS` 是从进程启动起计算的单调时钟总预算，约束单命令、整个脚本和
 交互会话，而不是为每条子命令重新计时；预算耗尽返回 `ETIMEDOUT`。单次时长、
 总重复时长和总预算上限均为 24 小时，重复次数上限为 100000，避免整数溢出及
-误输入导致的无限占用。`--dry-run` 只验证并输出计划，不等待也不访问设备。
+误输入导致的无限占用。`--dry-run` 对控制命令只验证并输出计划，不改变硬件或
+等待；`list`、`info`、`stats`、`iopad-get` 等查询命令仍会打开设备读取信息。
 
 `--json` 使用 JSON Lines：标准输出与标准错误的每个非空行都是独立、完整且含
 `ok` 字段的 JSON 对象，适合逐行流式解析。对象中的路径、别名和错误文本均按
@@ -214,6 +283,8 @@ sudo GPIOCTL_ZSH_STRESS_SECONDS=60 GPIOCTL_ZSH_REPORT_SECONDS=10 \
 
 ## 文档索引
 
+- [贡献指南](CONTRIBUTING.md)
+- [安全策略](SECURITY.md)
 - [架构说明](docs/architecture-zsh.md)
 - [UAPI 说明](docs/uapi-zsh.md)
 - [用户指南](docs/user-guide-zsh.md)
@@ -239,3 +310,8 @@ sudo benchmarks/run_benchmarks_zsh.sh
 `results/event-20260718-145236/`。自研单线 get 吞吐为 libgpiod 基线的 105.45%，
 lease/release 为 99.98%；单线 set 为 74.68%、8-line batch 为 67.75%，未达到约
 90% 目标，原因和完整 P50/P95/P99 均在[性能评估](docs/performance-zsh.md)中公开。
+
+## License
+
+Copyright (C) 2026 Shanghan Zhuang. This project is licensed under
+[GPL-2.0-only](LICENSE).
