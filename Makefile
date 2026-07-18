@@ -26,19 +26,19 @@ check:
 	$(MAKE) -C userspace BUILD_DIR=$(BUILD_DIR)/userspace check
 
 kunit:
-	./scripts/run_kunit_zsh.sh
+	sh ./scripts/run_kunit_zsh.sh
 
 static-analysis:
-	./scripts/static_analysis_zsh.sh
+	sh ./scripts/static_analysis_zsh.sh
 
 audit:
-	./scripts/release_audit_zsh.sh
+	sh ./scripts/release_audit_zsh.sh
 
 install: all
-	./scripts/install_zsh.sh
+	sh ./scripts/install_zsh.sh
 
 uninstall:
-	./scripts/uninstall_zsh.sh
+	sh ./scripts/uninstall_zsh.sh
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(CURDIR)/kernel clean
