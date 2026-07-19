@@ -47,6 +47,14 @@ install -D -m 0644 "$project_dir/build/dts/phytium-pi-gpioctl-zsh.dtbo" \
 	/usr/lib/gpioctl_zsh/phytium-pi-gpioctl-zsh.dtbo
 install -D -m 0644 "$project_dir/packaging/70-gpioctl-zsh.rules" \
 	/etc/udev/rules.d/70-gpioctl-zsh.rules
+install -D -m 0755 "$project_dir/scripts/load_zsh.sh" \
+	/usr/libexec/gpioctl-zsh/load_zsh.sh
+install -D -m 0755 "$project_dir/scripts/unload_zsh.sh" \
+	/usr/libexec/gpioctl-zsh/unload_zsh.sh
+install -D -m 0755 "$project_dir/scripts/autostart_zsh.sh" \
+	/usr/local/sbin/gpioctl-zsh-autostart
+install -D -m 0644 "$project_dir/packaging/gpioctl-zsh.service" \
+	/etc/systemd/system/gpioctl-zsh.service
 
 if ! getent group gpio >/dev/null 2>&1; then
 	groupadd --system gpio
@@ -54,4 +62,8 @@ fi
 depmod -a "$kernel_release"
 udevadm control --reload-rules
 udevadm trigger --subsystem-match=gpioctl_zsh 2>/dev/null || true
-echo "gpioctl_zsh installed for kernel $kernel_release"
+systemctl daemon-reload
+systemctl reset-failed gpioctl-zsh.service 2>/dev/null || true
+systemctl start gpioctl-zsh.service
+echo "gpioctl_zsh installed and started for kernel $kernel_release"
+echo "boot autostart remains disabled; enable it with: sudo gpioctl-zsh-autostart enable"
