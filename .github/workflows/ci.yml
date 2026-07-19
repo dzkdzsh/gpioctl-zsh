@@ -18,3 +18,5 @@ jobs:
         uses: actions/checkout@v7
       - name: Build userspace and run self-tests
         run: make check
+      - name: Parse lifecycle shell scripts
+        run: sh -n scripts/*.sh

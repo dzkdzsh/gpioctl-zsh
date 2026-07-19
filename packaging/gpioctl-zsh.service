@@ -1,0 +1,17 @@
+[Unit]
+Description=gpioctl-zsh GPIO character-device stack
+Documentation=https://github.com/dzkdzsh/gpioctl-zsh
+After=local-fs.target systemd-modules-load.service systemd-udevd.service
+Before=schrodingers-codex.service
+ConditionPathExists=/usr/libexec/gpioctl-zsh/load_zsh.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/gpioctl-zsh/load_zsh.sh
+ExecStop=/usr/libexec/gpioctl-zsh/unload_zsh.sh --remove-overlay
+RemainAfterExit=yes
+TimeoutStartSec=30
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
