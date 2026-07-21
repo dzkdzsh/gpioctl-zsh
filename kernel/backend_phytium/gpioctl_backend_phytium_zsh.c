@@ -1,4 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Phytium Pi IOPAD provider.
+ *
+ * The table maps the stable GPIO controller key and line offset to one PAD
+ * register.  Register updates are masked read-modify-write operations under a
+ * short spinlock: unrelated mux/bias/drive bits are preserved, and no sleeping
+ * operation is performed while the MMIO lock is held.
+ */
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>

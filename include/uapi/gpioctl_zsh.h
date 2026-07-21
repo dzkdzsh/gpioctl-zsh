@@ -1,4 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Public kernel/userspace ABI.  Structures use fixed-width fields and explicit
+ * reserved space so 32-bit and 64-bit callers share one layout.  Callers must
+ * set abi_version and struct_size and leave every reserved field zero; new ABI
+ * revisions must not silently reinterpret an existing field.
+ */
 #ifndef GPIOCTL_ZSH_UAPI_H
 #define GPIOCTL_ZSH_UAPI_H
 

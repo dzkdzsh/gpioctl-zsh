@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Command-line frontend shared by one-shot, REPL, and script execution.
+ *
+ * All three modes dispatch through the same parser and executor.  This keeps
+ * validation, deadlines, dry-run behavior, JSON output, and line ownership
+ * identical instead of maintaining subtly different command implementations.
+ */
 #define _POSIX_C_SOURCE 200809L
 
 #include <ctype.h>

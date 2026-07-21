@@ -1,4 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Production backend implemented with Linux GPIO descriptors.
+ *
+ * The core owns policy and session semantics; this adapter only translates a
+ * validated line operation to gpiolib.  Descriptor request/free calls remain
+ * paired, and *_cansleep accessors are intentional because a GPIO controller
+ * may live behind a sleeping bus rather than direct MMIO.
+ */
 #include <linux/bitmap.h>
 #include <linux/errno.h>
 #include <linux/device.h>

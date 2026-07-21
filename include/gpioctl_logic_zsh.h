@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Side-effect-free validators shared by the kernel and native unit tests.
+ * Keeping these rules independent of kernel objects lets the same boundary
+ * checks run in CI without weakening the in-kernel validation path.
+ */
 #ifndef GPIOCTL_LOGIC_ZSH_H
 #define GPIOCTL_LOGIC_ZSH_H
 

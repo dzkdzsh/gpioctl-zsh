@@ -1,4 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Generic GPIO control core.
+ *
+ * A file descriptor owns one session and every line lease acquired through
+ * it.  controller->lock serializes lease/policy state, session->lock protects
+ * per-session configuration, and event_lock is restricted to the bounded
+ * event ring so IRQ producers never take a sleeping lock.  User buffers are
+ * copied before those locks are held; release paths restore safe state in the
+ * reverse order in which resources were acquired.
+ */
 #include <linux/bitmap.h>
 #include <linux/capability.h>
 #include <linux/cdev.h>
