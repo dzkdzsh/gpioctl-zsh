@@ -1,4 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Internal backend contract.  A successful request transfers one line handle
+ * to the core until the matching release call.  Backends expose mechanism and
+ * capabilities only; lease, authorization, rollback, and safe-state policy
+ * remain centralized in gpioctl_core_zsh.
+ */
 #ifndef GPIOCTL_HAL_ZSH_H
 #define GPIOCTL_HAL_ZSH_H
 

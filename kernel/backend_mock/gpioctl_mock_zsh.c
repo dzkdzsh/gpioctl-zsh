@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Deterministic in-kernel backend used for integration and rollback tests.
+ *
+ * Failure parameters model request, operation, timeout, and readback faults;
+ * they are test controls, not production policy.  All mutable line state is
+ * serialized by the backend mutex so concurrent tests remain reproducible.
+ */
 #include <linux/errno.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>

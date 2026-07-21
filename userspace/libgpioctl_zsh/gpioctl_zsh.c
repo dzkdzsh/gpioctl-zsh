@@ -1,4 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Thin userspace wrapper around the public gpioctl-zsh ioctl ABI.
+ *
+ * Each function fully initializes fixed-width request structures before the
+ * syscall, preventing stack bytes from becoming ABI input.  Kernel errno is
+ * preserved for callers; the library deliberately adds no hidden retry or
+ * ownership policy, so one handle continues to represent one kernel session.
+ */
 #define _GNU_SOURCE
 
 #include <errno.h>
